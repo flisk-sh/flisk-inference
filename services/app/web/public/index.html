@@ -93,7 +93,7 @@ function samples(){let cur="curl";const box=h("div");const draw=()=>{box.textCon
 
 /* ---------- landing ---------- */
 const CASES=[["Write a config","Turn a plain-English request into a valid Flisk service.json.",1],["Repair a rejected config","Give it the validator error and the broken file, get the smallest fix back.",1],["Route support tickets","Label billing, bug or how-to and pick the queue.",0],["Extract fields to JSON","Invoices and emails into a fixed schema.",0],["Triage log lines","Noise, known issue, or page someone.",0],["Make test data","Rows and fixtures that match a schema.",0]];
-const RESULTS=[["Claude Haiku 5.5","Large hosted",57,15],["Claude Sonnet 5.5","Large hosted",57,16],["flisk-wolf, prompted 7B","Small, long prompt",54,18],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop",62,16]];
+const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","Large hosted",57,18],["flisk-wolf, prompted 7B","Small, long prompt (what runs here)",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
 function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
@@ -104,7 +104,7 @@ function landing(){
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
     h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
-    h("p",{class:"lead"},"A small open model that writes and repairs Flisk config files, behind an OpenAI-compatible API. Every answer is graded by Flisk's own validator."),
+    h("p",{class:"lead"},"A small open model that writes and repairs Flisk config files, behind an OpenAI-compatible API. Tested against Flisk's own validator, with the results published."),
     h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"See the test results")),
     h("ul",{class:"proof"},h("li",{},"OpenAI-compatible"),h("li",{},"Free while in preview"),h("li",{},"30 requests a minute"))),
    h("div",{class:"demo card"},
@@ -112,14 +112,14 @@ function landing(){
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
     h("div",{class:"demo-label"},"You get"),
     codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}'),
-    h("div",{class:"demo-note"},"A real answer from the model, passed through the Flisk validator."))),
+    h("div",{class:"demo-note"},"A real answer from the model. It passes the Flisk validator."))),
   h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Point any OpenAI client at this address. Create a key first."),samples()),
   h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
    h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
-   h("p",{class:"sub"},"Two held-out tests of writing Flisk config, graded by the real Flisk validator: 62 machine-written questions and 26 written by hand in natural wording. The perfect generated score mostly reflects matching the generator's phrasing; the natural-wording column is the honest one. Claude was given no Flisk documentation. One or two questions of difference is noise."),
-   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Generated (62)"),h("th",{class:"num"},"Natural (26)"))),
-    h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 26")))))),
+   h("p",{class:"sub"},"Two held-out tests of writing Flisk config, graded by the real Flisk validator: 62 machine-written questions, and 29 written by hand in casual, messy wording (the fair one). On natural wording the trained model matches Claude, which was given no Flisk documentation, and does not beat it. It missed its own target. A gap of one question is noise."),
+   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Machine-written (62)"),h("th",{class:"num"},"Natural wording (29)"))),
+    h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 29")))))),
    h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
   h("footer",{},"Free preview: 30 requests a minute per key, 1,024 output tokens per request. It is early, may be offline, and sign-in is limited to invited GitHub accounts while it is tested."))}
 

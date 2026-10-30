@@ -25,9 +25,9 @@ Open <http://localhost:4000>. For a real server with no laptop, see **[DEPLOY.md
 Early and honest. Read this before trusting the address:
 
 - **This repo is what `inference.flisk.si` serves today, through a stop-gap.** It runs on a laptop behind a Cloudflare tunnel ([`deploy/run-local-bridge.sh`](deploy/run-local-bridge.sh)), so the address is only up while that laptop is on. The real fix is a small Linux server with a persistent volume ([DEPLOY.md](DEPLOY.md)). The code passes its 25 tests in CI.
-- **The model behind it is the prompted 7B.** A trained 1.5B has finished training and scores 62/62 on the machine-written test and 16/26 on natural wording, but its weights are not exported yet, so it is not served anywhere. A second round to improve natural wording is in progress.
+- **The model behind it is the prompted 7B.** A trained 1.5B has finished two rounds of training, but its weights are not exported, so it is not served anywhere. Its latest scores: 60 of 62 on the machine-written test, and **17 of 29 on the clean natural-wording test, against 18 for Claude Haiku and Sonnet and 17 for the prompted 7B**. That is level with Claude, not better, and it missed its own target of 22 of 26. The numbers, the misses and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model).
 - **Sign-in is invited-only** while it is tested.
 
-Results and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model) and its [roadmap](https://github.com/flisk-sh/flisk-model/blob/main/ROADMAP.md). Next steps for this repo, in order: score the retrained model, turn on schema-constrained output and compare, export the weights (GGUF), then move the real address to a small Linux server (see [DEPLOY.md](DEPLOY.md)).
+Results and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model) and its [roadmap](https://github.com/flisk-sh/flisk-model/blob/main/ROADMAP.md). Next steps, in order and not tonight: fix the data gaps the misses show, one size check (8-bit 1.5B or the 7B), measure Claude *with* the Flisk schema in its prompt (the number that decides whether a small model has a point), then export the weights and move the real address to a small Linux server (see [DEPLOY.md](DEPLOY.md)).
 
 [MIT](LICENSE)
