@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="A small model for small jobs: write and repair Flisk service.json files. OpenAI-compatible API, free preview.">
+<meta name="description" content="Plain English in, valid Flisk service.json out. A small open model behind an OpenAI-compatible API, free preview.">
 <title>Flisk Inference</title>
 <style>
 :root{--bg:#08080c;--bg2:#0d0d13;--panel:#111117;--panel2:#17171f;--ink:#ececf1;--mut:rgba(236,236,241,.68);--faint:rgba(236,236,241,.46);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.18);
@@ -15,7 +15,7 @@ body{margin:0;background:radial-gradient(70rem 32rem at 85% -12%,var(--glow),tra
 h1,h2,h3{margin:0;letter-spacing:-.02em;line-height:1.1}a{color:inherit}code,pre,.mono{font-family:var(--mono);font-size:12.5px}
 button{font:inherit;color:inherit;cursor:pointer}:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:999px;padding:9px 18px;font:600 12.5px var(--mono);letter-spacing:.02em;text-decoration:none;background:transparent;transition:background .15s,transform .15s}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:999px;padding:9px 18px;font:600 12.5px var(--mono);letter-spacing:.02em;text-decoration:none;background:transparent;transition:background .15s,transform .15s}
 .btn:hover{background:var(--panel2)}.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--accink)}.btn.primary:hover{filter:brightness(1.08);background:var(--acc)}.btn.sm{padding:6px 12px;font-size:11.5px}.btn.danger{color:var(--red)}
 .pill{display:inline-flex;align-items:center;gap:8px;font:600 11.5px var(--mono);padding:5px 11px;border:1px solid var(--line2);border-radius:999px;color:var(--mut)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}.dot.ok{background:var(--acc);box-shadow:0 0 0 4px var(--tint)}.dot.bad{background:var(--red)}
@@ -28,7 +28,9 @@ button{font:inherit;color:inherit;cursor:pointer}:focus-visible{outline:2px soli
 .site-nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:700;font-size:18px;letter-spacing:-.02em;text-decoration:none}
 .brand svg{width:26px;height:26px;color:var(--acc)}.nav-r{display:flex;align-items:center;gap:8px}
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:56px 0 48px}
-.hero>*{min-width:0}.code{min-width:0;max-width:100%}.hero h1{font-size:clamp(34px,5.6vw,60px);margin:18px 0 16px}.hero p.lead{color:var(--mut);font-size:18px;max-width:30em;margin:0 0 26px}.cta{display:flex;gap:10px;flex-wrap:wrap}
+.proof{display:flex;gap:6px 18px;flex-wrap:wrap;list-style:none;padding:0;margin:22px 0 0;color:var(--faint);font:500 12.5px var(--mono)}.proof li::before{content:"\2713";color:var(--acc);margin-right:7px}
+.demo{padding:20px}.demo-label{font:600 11px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}.demo-q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:15px;line-height:1.5}.demo .code{margin-bottom:12px}.demo-note{font-size:12.5px;color:var(--mut)}
+.hero>*{min-width:0}.code{min-width:0;max-width:100%}.hero h1{font-size:clamp(30px,4.3vw,48px);margin:18px 0 16px}.hero p.lead{color:var(--mut);font-size:18px;max-width:30em;margin:0 0 26px}.cta{display:flex;gap:10px;flex-wrap:wrap}
 section.block{padding:44px 0;border-top:1px solid var(--line)}section.block h2{font-size:28px;margin-bottom:8px}.sub{color:var(--mut);max-width:42em;margin:0 0 24px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.grid .card{padding:18px}.grid h3{font-size:15.5px;margin:10px 0 6px}.grid p{margin:0;color:var(--mut);font-size:14px}
 table{width:100%;border-collapse:collapse;font-size:14px}th{font:500 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);text-align:left;white-space:nowrap}th,td{padding:11px 10px;border-bottom:1px solid var(--line)}th{border-bottom-color:var(--line2)}td.num{font-variant-numeric:tabular-nums;text-align:right}th.num{text-align:right}
@@ -53,6 +55,7 @@ main header h1{font-size:22px}.content{padding:24px 28px 60px;max-width:1000px}
 .tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{border:1px solid var(--line2);background:none;border-radius:999px;padding:6px 14px;font:600 12px var(--mono);color:var(--mut)}.tabs button.on{background:var(--tint);color:var(--acctext);border-color:var(--acc)}
 .theme{border:1px solid var(--line2);background:none;border-radius:999px;width:34px;height:34px;display:grid;place-items:center}.theme svg{width:16px;height:16px}
 @media(max-width:860px){.hero{grid-template-columns:1fr;padding-top:32px}.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:10px}aside .brand{padding:4px 8px}.nav{display:flex;gap:4px;flex-wrap:wrap}aside .foot{flex-direction:row;margin:0 0 0 auto;align-items:center;padding:0}main header{position:static}.content,main header{padding-left:16px;padding-right:16px}.stats{grid-template-columns:1fr}}
+@media(max-width:520px){.site-nav .nav-r a.btn:not(.primary){display:none}.brand{font-size:16px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -100,10 +103,17 @@ function landing(){
    h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
-    h("h1",{},"The intern, not the genius."),
-    h("p",{class:"lead"},"A small model for small jobs: read a request, return a Flisk ",h("span",{class:"mono"},"service.json"),", fast and cheap. It will not write your novel. It will fix your config at 3 a.m."),
-    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"How good is it?"))),
-   h("div",{},samples())),
+    h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
+    h("p",{class:"lead"},"A small open model that writes and repairs Flisk config files, behind an OpenAI-compatible API. Every answer is graded by Flisk's own validator."),
+    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"See the test results")),
+    h("ul",{class:"proof"},h("li",{},"OpenAI-compatible"),h("li",{},"Free while in preview"),h("li",{},"30 requests a minute"))),
+   h("div",{class:"demo card"},
+    h("div",{class:"demo-label"},"You ask"),
+    h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
+    h("div",{class:"demo-label"},"You get"),
+    codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}'),
+    h("div",{class:"demo-note"},"A real answer from the model, passed through the Flisk validator."))),
+  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Point any OpenAI client at this address. Create a key first."),samples()),
   h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
    h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
