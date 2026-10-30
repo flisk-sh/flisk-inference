@@ -90,7 +90,7 @@ function samples(){let cur="curl";const box=h("div");const draw=()=>{box.textCon
 
 /* ---------- landing ---------- */
 const CASES=[["Write a config","Turn a plain-English request into a valid Flisk service.json.",1],["Repair a rejected config","Give it the validator error and the broken file, get the smallest fix back.",1],["Route support tickets","Label billing, bug or how-to and pick the queue.",0],["Extract fields to JSON","Invoices and emails into a fixed schema.",0],["Triage log lines","Noise, known issue, or page someone.",0],["Make test data","Rows and fixtures that match a schema.",0]];
-const RESULTS=[["Claude Haiku 5.5","Large hosted",57,0],["Claude Sonnet 5.5","Large hosted",57,0],["flisk-wolf, prompted 7B","Small, long prompt",54,1],["flisk-wolf, trained 1.5B","Tiny, our training (partial run)",46,1],["Qwen 7B, plain","Small, untouched",16,0]];
+const RESULTS=[["Claude Haiku 5.5","Large hosted",57,15],["Claude Sonnet 5.5","Large hosted",57,16],["flisk-wolf, prompted 7B","Small, long prompt",54,18],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop",62,16]];
 function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
@@ -107,9 +107,9 @@ function landing(){
   h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
    h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
-   h("p",{class:"sub"},"62 held-out questions about writing Flisk config, graded by the real Flisk validator. Claude was given no Flisk documentation. One or two questions of difference is noise."),
-   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Passed"),h("th",{},""))),
-    h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:mine?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{style:"width:30%"},h("div",{class:"bar-cell"},h("div",{class:"meter"},h("b",{style:`width:${Math.round(p/62*100)}%`}))))))))),
+   h("p",{class:"sub"},"Two held-out tests of writing Flisk config, graded by the real Flisk validator: 62 machine-written questions and 26 written by hand in natural wording. The perfect generated score mostly reflects matching the generator's phrasing; the natural-wording column is the honest one. Claude was given no Flisk documentation. One or two questions of difference is noise."),
+   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Generated (62)"),h("th",{class:"num"},"Natural (26)"))),
+    h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 26")))))),
    h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
   h("footer",{},"Free preview: 30 requests a minute per key, 1,024 output tokens per request. It is early, may be offline, and sign-in is limited to invited GitHub accounts while it is tested."))}
 
