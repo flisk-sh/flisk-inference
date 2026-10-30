@@ -24,7 +24,7 @@ Then put HTTPS in front of port 4000 (Caddy, or a Cloudflare tunnel) and point t
 
 ## Do not use a CI runner for the real address
 
-A GitHub Actions runner can serve a temporary demo (the live-preview workflow does), but it is the wrong place for a fixed address: the link or tunnel dies with the job, and the runner has no persistent disk, so every user and API key is lost on each run. Two overlapping runs are not a clean handover either. Use a small Linux server with a persistent volume, as below.
+A GitHub Actions runner can serve a temporary demo (the [live-preview](https://github.com/flisk-sh/live-preview) repo has a workflow for it; this repo has none), but it is the wrong place for a fixed address: the link or tunnel dies with the job, and the runner has no persistent disk, so every user and API key is lost on each run. Two overlapping runs are not a clean handover either. Use a small Linux server with a persistent volume, as below.
 
 ## Which server
 
