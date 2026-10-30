@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="A small model for small jobs: write and repair Flisk service.json files. OpenAI-compatible API, free preview.">
+<title>Flisk Inference</title>
+<style>
+:root{--bg:#08080c;--bg2:#0d0d13;--panel:#111117;--panel2:#17171f;--ink:#ececf1;--mut:rgba(236,236,241,.68);--faint:rgba(236,236,241,.46);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.18);
+--acc:#22c55e;--accink:#04120a;--acctext:#6ee7a0;--tint:rgba(34,197,94,.12);--blue:#38bdf8;--amber:#f59e0b;--red:#f43f5e;--glow:rgba(34,197,94,.08);--shadow:0 18px 50px rgba(0,0,0,.45);
+--font:"Satoshi","DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;--r:14px}
+:root[data-theme=light]{--bg:#f6f6f4;--bg2:#efefec;--panel:#fff;--panel2:#f0f0ed;--ink:#16161a;--mut:#52525b;--faint:#71717a;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.22);--acctext:#15803d;--tint:rgba(34,197,94,.1);--glow:rgba(34,197,94,.1);--shadow:0 14px 40px rgba(0,0,0,.12)}
+*{box-sizing:border-box}html{color-scheme:dark}:root[data-theme=light]{color-scheme:light}
+body{margin:0;background:radial-gradient(70rem 32rem at 85% -12%,var(--glow),transparent 60%),var(--bg);color:var(--ink);font:15px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;letter-spacing:-.02em;line-height:1.1}a{color:inherit}code,pre,.mono{font-family:var(--mono);font-size:12.5px}
+button{font:inherit;color:inherit;cursor:pointer}:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:999px;padding:9px 18px;font:600 12.5px var(--mono);letter-spacing:.02em;text-decoration:none;background:transparent;transition:background .15s,transform .15s}
+.btn:hover{background:var(--panel2)}.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--accink)}.btn.primary:hover{filter:brightness(1.08);background:var(--acc)}.btn.sm{padding:6px 12px;font-size:11.5px}.btn.danger{color:var(--red)}
+.pill{display:inline-flex;align-items:center;gap:8px;font:600 11.5px var(--mono);padding:5px 11px;border:1px solid var(--line2);border-radius:999px;color:var(--mut)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}.dot.ok{background:var(--acc);box-shadow:0 0 0 4px var(--tint)}.dot.bad{background:var(--red)}
+.tag{display:inline-flex;align-items:center;gap:6px;font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border:1px solid var(--c);border-radius:999px;color:var(--c)}.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+.tag.ok{--c:var(--acc)}.tag.assess{--c:var(--amber)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.code{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden}.code pre{margin:0;padding:16px 16px 16px;overflow:auto;line-height:1.65}
+.code .copy{position:absolute;top:8px;right:8px}.code .bar{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}.code .bar i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
+.kw{color:var(--acctext)}.st{color:#f0abfc}.cm{color:var(--faint)}
+.site-nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:700;font-size:18px;letter-spacing:-.02em;text-decoration:none}
+.brand svg{width:26px;height:26px;color:var(--acc)}.nav-r{display:flex;align-items:center;gap:8px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:56px 0 48px}
+.hero>*{min-width:0}.code{min-width:0;max-width:100%}.hero h1{font-size:clamp(34px,5.6vw,60px);margin:18px 0 16px}.hero p.lead{color:var(--mut);font-size:18px;max-width:30em;margin:0 0 26px}.cta{display:flex;gap:10px;flex-wrap:wrap}
+section.block{padding:44px 0;border-top:1px solid var(--line)}section.block h2{font-size:28px;margin-bottom:8px}.sub{color:var(--mut);max-width:42em;margin:0 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.grid .card{padding:18px}.grid h3{font-size:15.5px;margin:10px 0 6px}.grid p{margin:0;color:var(--mut);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}th{font:500 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);text-align:left;white-space:nowrap}th,td{padding:11px 10px;border-bottom:1px solid var(--line)}th{border-bottom-color:var(--line2)}td.num{font-variant-numeric:tabular-nums;text-align:right}th.num{text-align:right}
+tr.hl td{background:var(--tint)}.bar-cell{display:flex;align-items:center;gap:10px}.meter{flex:1;height:6px;border-radius:99px;background:var(--panel2);overflow:hidden;min-width:60px}.meter b{display:block;height:100%;background:var(--acc)}
+footer{padding:30px 0 56px;color:var(--faint);font-size:13px;border-top:1px solid var(--line)}
+.app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+aside{background:var(--bg2);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+aside .brand{padding:6px 10px 16px}.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--mut);font-weight:600;font-size:14px}.nav a:hover{background:var(--panel2);color:var(--ink)}.nav a.on{background:var(--tint);color:var(--acctext)}
+.nav svg{width:18px;height:18px;flex:none}aside .foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:10px}
+.who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px}.who img,.avatar{width:30px;height:30px;border-radius:50%;background:var(--panel2);flex:none}
+main{min-width:0}main header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);z-index:5}
+main header h1{font-size:22px}.content{padding:24px 28px 60px;max-width:1000px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.stat{padding:16px 18px}.stat small{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}.stat b{display:block;font-size:30px;font-weight:650;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.stat span{font-size:12.5px;color:var(--mut)}
+.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}.seg{display:inline-flex;border:1px solid var(--line2);border-radius:999px;overflow:hidden}.seg button{border:0;background:none;padding:5px 13px;font:600 11.5px var(--mono);color:var(--mut)}.seg button.on{background:var(--tint);color:var(--acctext)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:8px}.chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.chart .col i{display:block;background:var(--acc);border-radius:4px 4px 1px 1px;min-height:2px;opacity:.9;transition:opacity .15s}.chart .col:hover i{opacity:1;filter:brightness(1.15)}.chart .col.zero i{background:var(--line2);opacity:.5}
+.axis{display:flex;justify-content:space-between;color:var(--faint);font:11px var(--mono);margin-top:8px}
+.empty{padding:28px;text-align:center;color:var(--mut)}.empty b{display:block;color:var(--ink);margin-bottom:4px}
+.row-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.newkey{border-color:var(--acc);background:var(--tint);margin-bottom:14px}.newkey .code{margin-top:10px}
+.login-card{max-width:440px;margin:12vh auto;padding:0 20px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font:600 12.5px var(--mono);opacity:0;pointer-events:none;transition:.2s;z-index:50}.toast.show{opacity:1;transform:translateX(-50%)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{border:1px solid var(--line2);background:none;border-radius:999px;padding:6px 14px;font:600 12px var(--mono);color:var(--mut)}.tabs button.on{background:var(--tint);color:var(--acctext);border-color:var(--acc)}
+.theme{border:1px solid var(--line2);background:none;border-radius:999px;width:34px;height:34px;display:grid;place-items:center}.theme svg{width:16px;height:16px}
+@media(max-width:860px){.hero{grid-template-columns:1fr;padding-top:32px}.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:10px}aside .brand{padding:4px 8px}.nav{display:flex;gap:4px;flex-wrap:wrap}aside .foot{flex-direction:row;margin:0 0 0 auto;align-items:center;padding:0}main header{position:static}.content,main header{padding-left:16px;padding-right:16px}.stats{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast" role="status"></div>
+<script>
+"use strict";
+const $=(s,r=document)=>r.querySelector(s);
+const SVG={
+ logo:'<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 6l7 5h10l7-5-2 11-6 9h-8l-6-9z"/><circle cx="12.5" cy="16" r="1" fill="currentColor"/><circle cx="19.5" cy="16" r="1" fill="currentColor"/></svg>',
+ home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+ key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3"/></svg>',
+ chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5"/></svg>',
+ moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>'};
+/* tiny DOM helper: text goes in as text, never as HTML */
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="html")e.innerHTML=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v)}
+ for(const k of kids.flat())if(k!=null&&k!==false)e.append(k.nodeType?k:document.createTextNode(String(k)));return e}
+const fmt=n=>Number(n).toLocaleString("en-US");
+const ago=t=>{if(!t)return"never";const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"};
+let toastT;const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1600)};
+const copy=async txt=>{try{await navigator.clipboard.writeText(txt);toast("Copied")}catch{toast("Select and copy")}};
+const store={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+function theme(){const t=store.get("fi-theme")||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");document.documentElement.dataset.theme=t}
+function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";store.set("fi-theme",t);theme()}
+const api=async(p,o)=>{const r=await fetch(p,o);if(r.status===401)return null;const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j};
+let me=null,cfg={name:"Flisk Inference",models:["flisk-wolf"]},status=null;
+
+function codeBlock(text,label){const pre=h("pre");pre.textContent=text;return h("div",{class:"code"},h("button",{class:"btn sm copy",onclick:()=>copy(text),"aria-label":"Copy code"},"Copy"),label?h("div",{class:"bar"},h("i"),h("i"),h("i")):null,pre)}
+const curl=(key="YOUR_API_KEY")=>`curl ${location.origin}/v1/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    "messages": [{"role":"user","content":"Write a Flisk service.json for a worker called emailer in the shop stack. Reply with the JSON only."}]\n  }'`;
+const py=(key="YOUR_API_KEY")=>`from openai import OpenAI\n\nclient = OpenAI(base_url="${location.origin}/v1", api_key="${key}")\nr = client.chat.completions.create(\n    model="${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    messages=[{"role": "user", "content": "Write a Flisk service.json for a worker called emailer in the shop stack."}],\n)\nprint(r.choices[0].message.content)`;
+const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: "${location.origin}/v1", apiKey: "${key}" });\nconst r = await client.chat.completions.create({\n  model: "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n  messages: [{ role: "user", content: "Write a Flisk service.json for a worker called emailer in the shop stack." }],\n});\nconsole.log(r.choices[0].message.content);`;
+function samples(){let cur="curl";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs"},...[["curl","curl"],["python","Python"],["node","Node"]].map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock({curl,python:py,node}[cur](),true))};draw();return box}
+
+/* ---------- landing ---------- */
+const CASES=[["Write a config","Turn a plain-English request into a valid Flisk service.json.",1],["Repair a rejected config","Give it the validator error and the broken file, get the smallest fix back.",1],["Route support tickets","Label billing, bug or how-to and pick the queue.",0],["Extract fields to JSON","Invoices and emails into a fixed schema.",0],["Triage log lines","Noise, known issue, or page someone.",0],["Make test data","Rows and fixtures that match a schema.",0]];
+const RESULTS=[["Claude Haiku 5.5","Large hosted",57,0],["Claude Sonnet 5.5","Large hosted",57,0],["flisk-wolf, prompted 7B","Small, long prompt",54,1],["flisk-wolf, trained 1.5B","Tiny, our training (partial run)",46,1],["Qwen 7B, plain","Small, untouched",16,0]];
+function landing(){
+ const ok=status&&status.ok;
+ return h("div",{class:"wrap"},
+  h("nav",{class:"site-nav"},h("a",{class:"brand",href:"/",html:SVG.logo+"<span>Flisk Inference</span>"}),h("div",{class:"nav-r"},
+   h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model"},"Results"),
+   h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),
+   h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
+  h("div",{class:"hero"},
+   h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
+    h("h1",{},"The intern, not the genius."),
+    h("p",{class:"lead"},"A small model for small jobs: read a request, return a Flisk ",h("span",{class:"mono"},"service.json"),", fast and cheap. It will not write your novel. It will fix your config at 3 a.m."),
+    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"How good is it?"))),
+   h("div",{},samples())),
+  h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
+   h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
+  h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
+   h("p",{class:"sub"},"62 held-out questions about writing Flisk config, graded by the real Flisk validator. Claude was given no Flisk documentation. One or two questions of difference is noise."),
+   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Passed"),h("th",{},""))),
+    h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:mine?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{style:"width:30%"},h("div",{class:"bar-cell"},h("div",{class:"meter"},h("b",{style:`width:${Math.round(p/62*100)}%`}))))))))),
+   h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
+  h("footer",{},"Free preview: 30 requests a minute per key, 1,024 output tokens per request. It is early, may be offline, and sign-in is limited to invited GitHub accounts while it is tested."))}
+
+/* ---------- console ---------- */
+const NAV=[["overview","Overview","home"],["keys","API keys","key"],["usage","Usage","chart"],["docs","Docs","book"]];
+function shell(section,title,body){
+ return h("div",{class:"app"},
+  h("aside",{},h("a",{class:"brand",href:"/",html:SVG.logo+"<span>Inference</span>"}),
+   h("nav",{class:"nav"},...NAV.map(([k,l,i])=>h("a",{href:"?section="+k,class:section===k?"on":"","aria-current":section===k?"page":null,html:SVG[i]+"<span>"+l+"</span>"}))),
+   h("div",{class:"foot"},h("div",{class:"who"},me&&me.avatar?h("img",{src:me.avatar,alt:"",width:30,height:30}):h("div",{class:"avatar"}),h("span",{},me?"@"+me.login:"Not signed in")),
+    h("div",{style:"display:flex;gap:8px"},h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),me?h("a",{class:"btn sm",href:"/auth/logout"},"Sign out"):null))),
+  h("main",{},h("header",{},h("h1",{},title),h("span",{class:"pill"},h("i",{class:"dot "+(status?(status.ok?"ok":"bad"):"")}),status?(status.ok?"Model online":"Model offline"):"…")),h("div",{class:"content"},body)))}
+function loginView(){
+ const b=h("div",{class:"login-card"},h("div",{class:"card"},h("h2",{style:"font-size:22px;margin-bottom:8px"},"Sign in"),h("p",{style:"color:var(--mut)"},"Use your GitHub account to create API keys and see your usage. We only read your public login."),h("div",{class:"cta",id:"lb"})));
+ const lb=$("#lb",b);if(cfg.oauth)lb.append(h("a",{class:"btn primary",href:"/auth/github"},"Sign in with GitHub"));if(cfg.dev)lb.append(h("a",{class:"btn",href:"/auth/dev"},"Local gh login (dev)"));
+ if(!cfg.oauth&&!cfg.dev)lb.append(h("p",{style:"color:var(--faint)"},"Sign-in is not configured on this server."));
+ b.append(h("p",{style:"text-align:center;margin-top:16px"},h("a",{href:"/",style:"color:var(--mut)"},"← Back to the site")));return b}
+async function overview(){
+ const u=await api("/api/usage");const t=u.totals,days=u.daily;
+ let metric="requests";const chart=h("div");
+ const draw=()=>{chart.textContent="";const vals=days.map(d=>metric==="requests"?d.requests:d.input+d.output),max=Math.max(1,...vals);
+  chart.append(h("div",{class:"chart-head"},h("b",{},"Last 30 days"),h("div",{class:"seg"},...[["requests","Requests"],["tokens","Tokens"]].map(([k,l])=>h("button",{class:metric===k?"on":"",onclick:()=>{metric=k;draw()}},l)))),
+   h("div",{class:"chart",role:"img","aria-label":"Daily "+metric+" for the last 30 days"},...days.map((d,i)=>h("div",{class:"col"+(vals[i]?"":" zero"),title:d.date+": "+fmt(vals[i])+" "+metric},h("i",{style:`height:${vals[i]?Math.max(4,vals[i]/max*100):3}%`})))),
+   h("div",{class:"axis"},h("span",{},days[0].date.slice(5)),h("span",{},"peak "+fmt(max)),h("span",{},days[29].date.slice(5))))};draw();
+ const first=t.requests===0;
+ return h("div",{},h("div",{class:"stats"},
+   h("div",{class:"card stat"},h("small",{},"Requests"),h("b",{},fmt(t.requests)),h("span",{},"all time")),
+   h("div",{class:"card stat"},h("small",{},"Tokens"),h("b",{},fmt(t.input+t.output)),h("span",{},fmt(t.input)+" in · "+fmt(t.output)+" out")),
+   h("div",{class:"card stat"},h("small",{},"Cost"),h("b",{},"Free"),h("span",{},"preview, no billing yet"))),
+  h("div",{class:"card",style:"margin-bottom:18px"},chart),
+  first?h("div",{class:"card newkey"},h("b",{},"Make your first request"),h("p",{style:"color:var(--mut);margin:4px 0 0"},"Create a key, then paste this into a terminal."),h("div",{style:"margin-top:10px"},h("a",{class:"btn primary",href:"?section=keys"},"Create an API key"))):null)}
+async function keysView(){
+ const ks=await api("/api/keys");const wrap=h("div"),fresh=h("div");
+ const reload=async()=>{wrap.replaceWith(await keysView());};
+ const newBtn=h("button",{class:"btn primary",onclick:async()=>{const name=prompt("Name for this key","default");if(name===null)return;try{const k=await api("/api/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})});fresh.textContent="";fresh.append(h("div",{class:"card newkey"},h("b",{},"Copy this key now. It is shown once."),codeBlock(k.key),h("p",{style:"color:var(--mut);margin:10px 0 0;font-size:13px"},"Keep it secret. Never put it in code that runs in a browser.")));const list=await api("/api/keys");tbl(list)}catch(e){alert(e.message)}}},"New API key");
+ const tb=h("div");
+ const row=k=>h("tr",{},h("td",{},k.name),h("td",{class:"mono"},k.prefix+"…"+k.last4),h("td",{},new Date(k.created).toLocaleDateString()),h("td",{},ago(k.lastUsed)),
+  h("td",{style:"text-align:right"},h("button",{class:"btn sm danger",onclick:async()=>{if(confirm("Revoke key \""+k.name+"\"? Requests using it will stop working.")){await api("/api/keys/"+k.id,{method:"DELETE"});tbl(await api("/api/keys"))}}},"Revoke")));
+ const tbl=list=>{tb.textContent="";tb.append(list.length?h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},...["Name","Key","Created","Last used",""].map(x=>h("th",{},x)))),h("tbody",{},...list.map(row)))):h("div",{class:"card empty"},h("b",{},"No keys yet"),"Create one to start calling the model."))};
+ tbl(ks);
+ wrap.append(h("div",{class:"row-actions"},h("p",{style:"color:var(--mut);margin:0"},"Keys authenticate requests. Up to 10 active keys."),newBtn),fresh,tb,h("h3",{style:"margin:28px 0 12px;font-size:17px"},"Try it"),samples());return wrap}
+async function usageView(){
+ const u=await api("/api/usage");
+ return h("div",{},h("div",{class:"card",style:"padding:6px 10px;overflow:auto;margin-bottom:18px"},u.keys.length?h("table",{},h("thead",{},h("tr",{},h("th",{},"Key"),h("th",{class:"num"},"Requests"),h("th",{class:"num"},"Input"),h("th",{class:"num"},"Output"),h("th",{},"Last used"))),h("tbody",{},...u.keys.map(k=>h("tr",{},h("td",{},k.name+(k.revoked?" (revoked)":"")),h("td",{class:"num"},fmt(k.requests)),h("td",{class:"num"},fmt(k.input)),h("td",{class:"num"},fmt(k.output)),h("td",{},ago(k.lastUsed)))))):h("div",{class:"empty"},h("b",{},"No usage yet"),"Create an API key and make a request.")),
+  h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Day"),h("th",{class:"num"},"Requests"),h("th",{class:"num"},"Tokens"))),h("tbody",{},...u.daily.slice().reverse().filter(d=>d.requests).map(d=>h("tr",{},h("td",{},d.date),h("td",{class:"num"},fmt(d.requests)),h("td",{class:"num"},fmt(d.input+d.output))))))))}
+function docsView(){return h("div",{},h("p",{style:"color:var(--mut);max-width:42em"},"An OpenAI-compatible endpoint. Point any OpenAI SDK at the base URL below and use your key."),
+ h("div",{class:"card",style:"margin:14px 0"},h("small",{class:"mono",style:"color:var(--faint)"},"BASE URL"),h("div",{style:"margin-top:6px"},codeBlock(location.origin+"/v1"))),samples(),
+ h("h3",{style:"margin:26px 0 10px;font-size:17px"},"Limits and errors"),h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[["30 / minute","Per key. Over it returns 429."],["1,024 tokens","Maximum output per request."],["No streaming","stream: true returns 400."],["One model","flisk-wolf. Another model name returns 400."],["401","Missing or revoked key."]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b)))))))}
+const VIEWS={overview:["Overview",overview],keys:["API keys",keysView],usage:["Usage",usageView],docs:["Docs",async()=>docsView()]};
+async function route(){
+ const q=new URLSearchParams(location.search).get("section");const root=$("#root");root.textContent="";
+ if(!q){root.append(landing());return}
+ const section=VIEWS[q]?q:"overview";
+ if(!me&&section!=="docs"){root.append(shell(section,"Sign in",loginView()));return}
+ const [title,view]=VIEWS[section];root.append(shell(section,title,h("div",{class:"empty"},"Loading…")));
+ try{const body=await view();$(".content",root).replaceChildren(body)}catch(e){$(".content",root).replaceChildren(h("div",{class:"card empty"},h("b",{},"Something went wrong"),e.message))}}
+(async()=>{theme();
+ try{cfg=await (await fetch("/api/config")).json()}catch{}
+ document.title=cfg.name||"Flisk Inference";
+ const [m,s]=await Promise.all([api("/api/me").catch(()=>null),fetch("/api/status").then(r=>r.json()).catch(()=>null)]);me=m;status=s;route()})();
+</script>
+</body>
+</html>

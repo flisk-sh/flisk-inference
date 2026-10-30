@@ -1,0 +1,33 @@
+# Runs the whole service on any Linux server with Docker: the model (Ollama) and the portal, no Mac needed.
+#   1. cp deploy/.env.example deploy/.env  and fill it in
+#   2. docker compose -f deploy/docker-compose.yml up -d
+#   3. docker compose -f deploy/docker-compose.yml exec ollama sh -c "ollama pull qwen2.5-coder:7b && ollama create flisk-wolf -f /deploy/Modelfile"
+# Put a reverse proxy with HTTPS (Caddy or a Cloudflare tunnel) in front of port 4000.
+services:
+  ollama:
+    image: ollama/ollama:0.40.13
+    restart: unless-stopped
+    volumes:
+      - models:/root/.ollama
+      - ./Modelfile:/deploy/Modelfile:ro
+    # GPU hosts: add `deploy.resources.reservations.devices` for nvidia, or use the ollama/ollama image's GPU docs.
+  portal:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on: [ollama]
+    env_file: .env
+    environment:
+      UPSTREAM_URL: http://ollama:11434
+      ALLOWED_MODELS: flisk-wolf
+      PORTAL_NAME: Flisk Inference
+      DATA_DIR: /data
+      PORT: "4000"
+    volumes:
+      - portal-data:/data
+    ports:
+      - "127.0.0.1:4000:4000"
+volumes:
+  models:
+  portal-data:

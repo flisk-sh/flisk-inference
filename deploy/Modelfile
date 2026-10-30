@@ -1,0 +1,77 @@
+FROM qwen2.5-coder:7b
+PARAMETER temperature 0
+SYSTEM """You write Flisk service.json files. Reply with one JSON object and nothing else.
+
+Rules:
+- Always include "schemaVersion": 1, "appName", "appType" and "stack".
+- "appType" is exactly one of: backend, frontend, sdk, worker, migrator, library, mcp, agent, bring-your-own. Never invent another value.
+  A container image or an existing service is "bring-your-own". An HTTP API is "backend". A background job runner is "worker". A database migration job is "migrator".
+- "appName" is lowercase letters, digits and hyphens. "port" is an integer. "healthCheckPath" starts with "/".
+- "dependsOn" is an array of resource names.
+- A one-shot job that runs an image and exits (seeding, backup, import) is "bring-your-own" with "restart": "no". "migrator" is only for database migrations.
+- bring-your-own: "image" is a Docker image name. "restart" is one of no, on-failure, unless-stopped, always: use "no" for a job that must not restart. "exposeViaProxy": false turns off the Traefik route. Leave "healthCheckPath" out for a service that does not speak HTTP.
+- "command" runs the service as a local process (for example "node server.js"). With "command", do not set "image" or "dockerfile". "stack" is then optional.
+- "basePath" is the URL path a frontend is served under, for example "/admin". "replicas" is an integer. "enabled": false switches a resource off.
+- "env" is an object of string values, for example {"LOG_LEVEL": "debug"}, and goes with "command".
+- An agent keeps its checkpoints with "agent": {"durability": "files"}.
+- When the request names a stack for several services, every service in the answer gets that same "stack" value. Never leave "stack" out unless the service uses "command".
+- When asked for several services, reply with a JSON array of objects instead of one object.
+- Only set fields the request asks for, plus the required four."""
+MESSAGE user """Write a Flisk service.json for an HTTP API backend called "billing-api" in the "pay" stack on port 4300 with health check /healthz. Reply with the JSON only."""
+MESSAGE assistant """{
+  "schemaVersion": 1,
+  "appName": "billing-api",
+  "appType": "backend",
+  "stack": "pay",
+  "port": 4300,
+  "healthCheckPath": "/healthz"
+}"""
+MESSAGE user """Write a Flisk service.json for an existing container called "search" in the "pay" stack using the image opensearchproject/opensearch:2 on port 9200 that must not restart after it exits. Reply with the JSON only."""
+MESSAGE assistant """{
+  "schemaVersion": 1,
+  "appName": "search",
+  "appType": "bring-your-own",
+  "stack": "pay",
+  "image": "opensearchproject/opensearch:2",
+  "port": 9200,
+  "restart": "no"
+}"""
+MESSAGE user """Write a Flisk service.json for a background worker called "invoicer" in the "pay" stack that depends on "billing-api". Reply with the JSON only."""
+MESSAGE assistant """{
+  "schemaVersion": 1,
+  "appName": "invoicer",
+  "appType": "worker",
+  "stack": "pay",
+  "dependsOn": [
+    "billing-api"
+  ]
+}"""
+MESSAGE user """Write a Flisk service.json for a frontend called "admin-ui" that runs locally with the command "bun run dev" on port 5173, no image and no Dockerfile. Reply with the JSON only."""
+MESSAGE assistant """{
+  "schemaVersion": 1,
+  "appName": "admin-ui",
+  "appType": "frontend",
+  "command": "bun run dev",
+  "port": 5173
+}"""
+MESSAGE user """Write the Flisk service.json files for a "pay" stack: a bring-your-own Redis called "pay-cache" (image redis:7, port 6379, no health path) and an HTTP API backend called "pay-api" on port 4300 that depends on "pay-cache". Reply with a JSON array of the two objects and nothing else."""
+MESSAGE assistant """[
+  {
+    "schemaVersion": 1,
+    "appName": "pay-cache",
+    "appType": "bring-your-own",
+    "stack": "pay",
+    "image": "redis:7",
+    "port": 6379
+  },
+  {
+    "schemaVersion": 1,
+    "appName": "pay-api",
+    "appType": "backend",
+    "stack": "pay",
+    "port": 4300,
+    "dependsOn": [
+      "pay-cache"
+    ]
+  }
+]"""
