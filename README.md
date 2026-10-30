@@ -22,6 +22,12 @@ Open <http://localhost:4000>. For a real server with no laptop, see **[DEPLOY.md
 
 ## Status
 
-Early and honest: it is a free preview, sign-in is invited-only while it is tested, and the model behind it is a prompted 7B. A trained 1.5B is in progress. See the [roadmap](https://github.com/flisk-sh/flisk-model/blob/main/ROADMAP.md).
+Early and honest. Read this before trusting the address:
+
+- **This repo is the new console. It is not what `inference.flisk.si` serves yet.** That address still runs an older console from [flisk-model](https://github.com/flisk-sh/flisk-model) on a laptop behind a tunnel, so it is only up while that laptop is on. This repo was shown running through a temporary runner link, and the code passes its 25 tests in CI.
+- **The model behind it is the prompted 7B.** A trained 1.5B has finished training and scores 62/62 on the machine-written test and 16/26 on natural wording, but its weights are not exported yet, so it is not served anywhere. A second round to improve natural wording is in progress.
+- **Sign-in is invited-only** while it is tested.
+
+Results and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model) and its [roadmap](https://github.com/flisk-sh/flisk-model/blob/main/ROADMAP.md). Next steps for this repo, in order: score the retrained model, turn on schema-constrained output and compare, export the weights (GGUF), then move the real address to a small Linux server (see [DEPLOY.md](DEPLOY.md)).
 
 [MIT](LICENSE)

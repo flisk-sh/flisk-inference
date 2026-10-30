@@ -22,6 +22,10 @@ curl -s localhost:4000/api/status       # {"ok":true,...}
 
 Then put HTTPS in front of port 4000 (Caddy, or a Cloudflare tunnel) and point the domain at it. State (users, hashed keys, usage) lives in the `portal-data` volume: back it up.
 
+## Do not use a CI runner for the real address
+
+A GitHub Actions runner can serve a temporary demo (the live-preview workflow does), but it is the wrong place for a fixed address: the link or tunnel dies with the job, and the runner has no persistent disk, so every user and API key is lost on each run. Two overlapping runs are not a clean handover either. Use a small Linux server with a persistent volume, as below.
+
 ## Which server
 
 - **CPU only (cheapest, a small VPS):** fine for the **1.5B trained model** (short prompt, short answers, a few seconds per reply). The 7B model with the long prompt takes tens of seconds per reply on CPU and is not pleasant.
