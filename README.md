@@ -28,6 +28,8 @@ Early and honest. Read this before trusting the address:
 - **The hosted model is Qwen2.5-Coder 32B with Flisk's rules, not yet scored.** The scored ones: the prompted 7B, and a trained 1.5B that has finished two rounds of training but whose weights are not exported, so it is not served anywhere. Its latest scores: 60 of 62 on the machine-written test, and **17 of 29 on the clean natural-wording test, against 18 for Claude Haiku and Sonnet and 17 for the prompted 7B**. That is level with Claude, not better, and it missed its own target of 22 of 26. The numbers, the misses and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model).
 - **Beta:** free, open sign-in, and keys and usage may be reset before launch.
 
+Next job, answering questions from the Flisk docs in the Ask box on flisk.sh/docs, with P0, P1 and P2 scored by ICE: [ROADMAP.md](ROADMAP.md).
+
 Results and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model) and its [roadmap](https://github.com/flisk-sh/flisk-model/blob/main/ROADMAP.md). Next steps, in order and not tonight: fix the data gaps the misses show, one size check (8-bit 1.5B or the 7B), measure Claude *with* the Flisk schema in its prompt (the number that decides whether a small model has a point), then export the weights and move the real address to a small Linux server (see [DEPLOY.md](DEPLOY.md)).
 
 [MIT](LICENSE)
