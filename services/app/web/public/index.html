@@ -265,7 +265,7 @@ function useCasesView(){return h("div",{},
   ...[["Problem",problem],["How",how],["What you get",gain]].map(([k,v])=>h("p",{style:"margin:0 0 8px;font-size:14px;color:var(--mut)"},h("b",{style:"color:var(--ink)"},k+": "),v))))),
  h("h3",{style:"margin:30px 0 10px;font-size:18px"},"For tech leads: should your team use it?"),
  h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[
-  ["Why not just ask ChatGPT or Claude?","You can, and on our natural-wording test Claude scored 18 of 29, against 17 for the small model: it is not more accurate. The reasons to use this are elsewhere: one fixed set of Flisk rules for the whole team, the same answer for the same request (temperature 0), and a small model you can run yourself."],
+  ["Why not just ask ChatGPT or Claude?","You can, and on our natural-wording test Claude and the small model both scored 17 of 29: it is not more accurate. The reasons to use this are elsewhere: one fixed set of Flisk rules for the whole team, the same answer for the same request (temperature 0), and a small model you can run yourself."],
   ["Can it stay inside our network?","Yes. The rules are an Ollama Modelfile in the open-source repo: run it on your own server and nothing leaves. The hosted beta is for trying it and small volumes."],
   ["How do we trust the output?","Check every answer with flisk config verify, and roll it out as a suggestion (a CI comment or a draft) that a person approves. Never auto-merge it."],
   ["What does it cost?","Nothing during the beta, within the free limits shown in the console."],
@@ -282,7 +282,7 @@ function limitsCard(today){const L=cfg.limits||{};const used=today?today.used:0,
   h("table",{},h("tbody",{},...[[fmt(L.perMinute||30)+" / minute","per API key"],[lim?fmt(lim)+" / day":"no daily cap","shared across all users"],[fmt(L.maxOutputTokens||1024)+" tokens","output per request"],[fmt(L.maxKeys||10)+" keys","active per account"],["No streaming","stream: true returns 400"]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b))))))}
 
 /* ---------- landing ---------- */
-const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","Large hosted",57,18],["flisk-wolf, prompted 7B","Small, long prompt",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
+const RESULTS=[["Claude Haiku 5.5","Large hosted",57,17],["Claude Sonnet 5.5","Large hosted",57,17],["flisk-wolf, prompted 7B","Small, long prompt",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
 function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
@@ -309,7 +309,7 @@ function landing(){
   h("section",{class:"block",id:"jobs"},h("h2",{},"What teams use it for"),h("p",{class:"sub"},h("a",{href:"?section=usecases"},"How each one works, and what you get")),
    h("div",{class:"grid"},...USECASES.map(([t,who,problem])=>h("a",{class:"card",href:"?section=usecases",style:"text-decoration:none"},h("span",{class:"tag ok"},who),h("h3",{},t),h("p",{},problem))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
-   h("p",{class:"sub"},"Every answer is graded by the real Flisk validator, on 62 machine-written requests and 29 written by hand in casual wording (the fair test). On casual wording our models match Claude, which had no Flisk docs, and do not beat it. The hosted beta runs Qwen2.5-Coder 32B with the same rules, not scored yet."),
+   h("p",{class:"sub"},"Every answer is graded by Flisk's own rules (the CLI validator plus Flisk's published service.json schema, re-graded 10 Nov 2026), on 62 machine-written requests and 29 written by hand in casual wording (the fair test). On casual wording our models match Claude, which had no Flisk docs, and do not beat it. The hosted beta runs Qwen2.5-Coder 32B with the same rules, not scored yet."),
    h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Machine-written (62)"),h("th",{class:"num"},"Natural wording (29)"))),
     h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 29")))))),
    h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
