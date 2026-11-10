@@ -55,6 +55,12 @@ Ties go to whatever earns visitors' trust.
 
 ## P0: AI answer beta in Ask (this week)
 
+**Status 2026-11-10: built, switched off until the token is set.** Helpdock's answer endpoint with the checks, caps and
+ranking test ([helpdock#17](https://github.com/flisk-sh/helpdock/pull/17), [#18](https://github.com/flisk-sh/helpdock/pull/18))
+and the button with the handoff on flisk.sh/docs ([website#143](https://github.com/flisk-sh/website/pull/143)) are merged.
+The button appears once `HELPDOCK_AI_ACCOUNT` and `HELPDOCK_AI_TOKEN` are set on Helpdock's Render service
+([DEPLOY.md](https://github.com/flisk-sh/helpdock/blob/main/DEPLOY.md)). The week of real questions starts then.
+
 1. **Helpdock** gets an answer endpoint: question plus the top 6 passages (up to 1,500 characters each) go to
    `@cf/qwen/qwen2.5-coder-32b-instruct` with the docs prompt from the test, at temperature 0. It has its own daily cap
    and a per-visitor limit. Questions are not stored; only counts are.
