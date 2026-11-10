@@ -37,7 +37,7 @@ const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url")
 const SESSION_DAYS = 7;
 
 // The site icons in public/: the canonical mark from flisk-sh/flisk-emoji (apps/flisk-inference.svg) and PNGs made from it.
-export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]; // og.png: the share preview
+export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]; // og.png: the 1200x630 share card, rendered from og.svg with rsvg-convert
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -121,9 +121,12 @@ export function createPortal(opts: PortalOptions) {
     const path = url.pathname;
 
     if (req.method === "GET" && path === "/health") return json(200, { status: "ok" });
-    if (req.method === "GET" && opts.asset && ICONS.includes(path)) return opts.asset(path);
-    if (req.method === "GET" && (path === "/" || path === "/index.html"))
-      return new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
+    // HEAD too: link-preview crawlers and `curl -I` check the image and page before fetching them.
+    const read = req.method === "GET" || req.method === "HEAD";
+    const bodyFor = (res: Response) => (req.method === "HEAD" ? new Response(null, { status: res.status, headers: res.headers }) : res);
+    if (read && opts.asset && ICONS.includes(path)) return bodyFor(await opts.asset(path));
+    if (read && (path === "/" || path === "/index.html"))
+      return bodyFor(new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } }));
     if (req.method === "GET" && path === "/api/status") {
       if (!statusCache || Date.now() - statusCache.at > 15_000) {
         let ok = false;
