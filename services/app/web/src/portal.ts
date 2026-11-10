@@ -37,13 +37,22 @@ const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url")
 const SESSION_DAYS = 7;
 
 // The site icons in public/: the canonical mark from flisk-sh/flisk-emoji (apps/flisk-inference.svg) and PNGs made from it.
-export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png"];
+export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]; // og.png: the share preview
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-function deniedPage(name: string, login: string): string {
-  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)}</title>${ICON_LINKS}<body style="font:16px/1.5 system-ui;max-width:30rem;margin:15vh auto;padding:0 1rem;background:#08080c;color:#ececf1"><h1 style="font-size:1.4rem">Private preview</h1><p><b>@${esc(login)}</b> is not on the list yet. ${esc(name)} is open to a few people while it is tested.</p><p><a style="color:#6ee7a0" href="/">Back to the site</a></p></body>`;
+// A small page in the site's style for the few answers a person sees outside the app: not found, sign-in failed, not invited.
+// `title`, `text` and the link are escaped here; callers pass plain text.
+function infoPage(name: string, title: string, text: string, link: [string, string], status: number): Response {
+  const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · ${esc(name)}</title>${ICON_LINKS}
+<style>:root{color-scheme:light dark}body{margin:0;font:16px/1.55 system-ui,sans-serif;background:#eeece5;color:#121212}main{max-width:34rem;margin:14vh auto;padding:28px;border:1px solid rgba(18,18,18,.82);background:#f6f4ee}
+small{font:600 11px ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:#6a6a70}h1{font:800 34px/1.05 Georgia,serif;letter-spacing:-.02em;margin:10px 0 12px}p{color:#3d3d42;margin:0 0 22px}
+a{display:inline-block;background:#22c55e;color:#04120a;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;padding:12px 20px;text-decoration:none}
+@media(prefers-color-scheme:dark){body{background:#0b0b0d;color:#ececf1}main{background:#111114;border-color:rgba(255,255,255,.62)}p{color:rgba(236,236,241,.68)}}</style>
+<main><small>${esc(name)} · ${status}</small><h1>${esc(title)}</h1><p>${esc(text)}</p><a href="${esc(link[1])}">${esc(link[0])}</a></main></html>`;
+  return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }
+const wantsHtml = (req: Request) => req.method === "GET" && (req.headers.get("accept") ?? "").includes("text/html");
 
 export function createPortal(opts: PortalOptions) {
   const maxBody = opts.maxBody ?? 64 * 1024;
@@ -137,14 +146,15 @@ export function createPortal(opts: PortalOptions) {
     if (path === "/auth/callback") {
       const state = url.searchParams.get("state"), code = url.searchParams.get("code");
       const expiry = state ? states.get(state) : undefined;
-      if (!opts.github || !state || !code || !expiry || expiry < Date.now()) return json(400, { error: "bad state or code" });
+      const signInFailed = (why: string) => infoPage(opts.name ?? "Portal", "Sign-in did not finish", `${why} Nothing was saved; try again.`, ["Sign in with GitHub", "/auth/github"], 400);
+      if (!opts.github || !state || !code || !expiry || expiry < Date.now()) return signInFailed("This sign-in link expired or was already used, for example after going back in the browser.");
       states.delete(state);
       const tok = (await (await doFetch("https://github.com/login/oauth/access_token", { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify({ client_id: opts.github.clientId, client_secret: opts.github.clientSecret, code }) })).json()) as { access_token?: string };
-      if (!tok.access_token) return json(400, { error: "GitHub did not return a token" });
+      if (!tok.access_token) return signInFailed("GitHub did not confirm the sign-in.");
       const gh = (await (await doFetch("https://api.github.com/user", { headers: { authorization: `Bearer ${tok.access_token}`, "user-agent": "flisk-portal" } })).json()) as GithubUser;
-      if (!gh.id || !gh.login) return json(400, { error: "could not read the GitHub profile" });
+      if (!gh.id || !gh.login) return signInFailed("We could not read your GitHub profile.");
       if (opts.allowedLogins?.length && !opts.allowedLogins.some((l) => l.toLowerCase() === String(gh.login).toLowerCase()))
-        return new Response(deniedPage(opts.name ?? "Portal", String(gh.login)), { status: 403, headers: { "content-type": "text/html; charset=utf-8" } });
+        return infoPage(opts.name ?? "Portal", "Private preview", `@${gh.login} is not on the list yet. ${opts.name ?? "Portal"} is open to a few people while it is tested.`, ["Back to the site", "/"], 403);
       return redirect("/?section=keys", { "set-cookie": sessionCookie(await upsertUser(gh)) });
     }
     if (path === "/auth/dev") {
@@ -158,6 +168,7 @@ export function createPortal(opts: PortalOptions) {
       const db = await opts.store.load();
       const save = () => opts.store.save(db);
       const user = sessionUser(req, db);
+      if (path === "/api/me" && req.method === "GET" && !user) return json(200, null);
       if (!user) return json(401, { error: "not signed in" });
       if (req.method !== "GET" && !sameOrigin(req)) return json(403, { error: "cross-origin request refused" });
       const mine = db.keys.filter((k) => k.userId === user.id);
@@ -244,6 +255,7 @@ export function createPortal(opts: PortalOptions) {
       }
       return new Response(text, { status: up.status, headers: { "content-type": up.headers.get("content-type") ?? "application/json" } });
     }
+    if (wantsHtml(req)) return infoPage(opts.name ?? "Portal", "Page not found", `There is nothing at ${path}.`, ["Back to the site", "/"], 404);
     return json(404, { error: "not found" });
   }
 

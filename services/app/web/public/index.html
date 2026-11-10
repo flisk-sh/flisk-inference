@@ -7,6 +7,12 @@
 <title>Flisk Inference</title>
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://inference.flisk.si/">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Flisk Inference">
+<meta property="og:title" content="Flisk Inference: plain English in, valid service.json out">
+<meta property="og:description" content="Write a Flisk service.json from one sentence, or send a rejected one and get the smallest fix. OpenAI-compatible API, free beta.">
+<meta property="og:url" content="https://inference.flisk.si/"><meta property="og:image" content="https://inference.flisk.si/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://inference.flisk.si/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -85,7 +91,7 @@ h3{letter-spacing:-.01em}
 .tabs{gap:0;border:1px solid var(--line2);width:max-content;max-width:100%;flex-wrap:wrap}
 .tabs button{border:0;border-right:1px solid var(--line2);padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}.tabs button:last-child{border-right:0}
 .tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--line2)}
-.tabs+.code{border-top:0}
+.tabs+.code,.tabs+[role=tabpanel]>.code:first-child,.tabs+[role=tabpanel]>.demo{border-top:0}[role=tabpanel]:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 /* landing: a ruled frame like a printed page */
 .wrap{max-width:1120px;padding:0 36px;border-left:1px solid var(--line2);border-right:1px solid var(--line2);min-height:100vh}
 .site-nav{margin:0 -36px;padding:14px 36px;border-bottom:1px solid var(--line2)}
@@ -124,6 +130,11 @@ main header h1{font-size:28px}
  .hero>div:first-child{padding:44px 16px 36px;border-right:0;border-bottom:1px solid var(--line2)}.demo{padding:0 16px 24px}.demo::before{margin:0 -16px 20px;flex-basis:44px;min-height:44px;max-height:44px}
  .grid,.grid.two{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.grid,.grid.two{grid-template-columns:1fr}.tabs{width:auto}}
+.code pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.newkey-form{display:flex;flex-wrap:wrap}.keyname{font:13px var(--mono);color:var(--ink);background:var(--panel);border:1px solid var(--line2);border-right:0;padding:0 12px;min-width:220px;height:40px;border-radius:0}.keyname:focus{outline:2px solid var(--acc);outline-offset:-2px}.newkey-form .btn{height:40px}.newkey-form .btn:disabled{opacity:.6}
+@media(max-width:860px){aside{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;padding:8px 12px}aside .brand{padding:4px 0}aside .foot{grid-column:2;grid-row:1;margin:0;padding:0;gap:8px}aside .who span{display:none}
+ aside .nav{grid-column:1/-1;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px;border-top:1px solid var(--line2)}aside .nav::-webkit-scrollbar{display:none}
+ .nav a{white-space:nowrap;padding:10px;border-left:0;border-bottom:3px solid transparent}.nav a.on{border-bottom-color:var(--acc)}.keyname{min-width:0;flex:1}}
 /* code highlighting (highlight.js classes), colours from the site palette */
 :root{--hl-kw:#6ee7a0;--hl-str:#f5c26b;--hl-num:#7dd3fc;--hl-attr:#c4b5fd;--hl-fn:#f4f4f5;--hl-com:rgba(236,236,241,.45);--hl-var:#fda4af}
 :root[data-theme=light]{--hl-kw:#137a3a;--hl-str:#9a5300;--hl-num:#0369a1;--hl-attr:#6d28d9;--hl-fn:#121212;--hl-com:#77777c;--hl-var:#be123c}
@@ -157,6 +168,7 @@ const SVG={
 function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="html")e.innerHTML=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v)}
  for(const k of kids.flat())if(k!=null&&k!==false)e.append(k.nodeType?k:document.createTextNode(String(k)));return e}
 const fmt=n=>Number(n).toLocaleString("en-US");
+const fmtDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
 const ago=t=>{if(!t)return"never";const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"};
 let toastT;const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1600)};
 const copy=async txt=>{try{await navigator.clipboard.writeText(txt);toast("Copied")}catch{toast("Select and copy")}};
@@ -194,7 +206,16 @@ const INTEGRATIONS=[
  ["litellm","LiteLLM",()=>`# pip install litellm\nimport os, litellm\n\nr = litellm.completion(\n    model="openai/${M()}",  # "openai/" = any OpenAI-compatible server\n    api_base="${location.origin}/v1",\n    api_key=os.environ["FLISK_API_KEY"],\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`,"python"],
  ["ci","CI: fix a rejected file",()=>`# GitHub Actions step: when a service.json is rejected, ask for the smallest fix\n# and save it as suggested-fix.json for a reviewer (never commit it unreviewed).\n- name: Suggest a fix for a rejected service.json\n  if: failure()\n  env:\n    FLISK_API_KEY: \${{ secrets.FLISK_API_KEY }}\n    FILE: services/api/service.json\n  run: |\n    ERRORS=$(flisk config verify 2>&1 || true)   # or any validator output\n    jq -n --rawfile file "$FILE" --arg err "$ERRORS" '{model: "${M()}", messages: [{role: "user",\n      content: ("This Flisk service.json is rejected:\\n" + $file + "\\n\\nThe validator says:\\n" + $err +\n        "\\n\\nFix it with the smallest change that makes it valid, keeping every other field. Reply with the corrected JSON object only.")}]}' \\\n    | curl -s ${location.origin}/v1/chat/completions \\\n        -H "Authorization: Bearer $FLISK_API_KEY" -H "Content-Type: application/json" -d @- \\\n    | jq -r '.choices[0].message.content' > suggested-fix.json`,"yaml"],
  ["curl","curl",()=>curl("$FLISK_API_KEY"),"bash"]];
-function integrations(){let cur="vercel";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs",style:"flex-wrap:wrap"},...INTEGRATIONS.map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock(INTEGRATIONS.find(x=>x[0]===cur)[2](),true,INTEGRATIONS.find(x=>x[0]===cur)[3]))};draw();return box}
+// Tabs with the wiring screen readers need (tablist, tab, tabpanel, aria-controls) and arrow, Home and End keys.
+let tabSeq=0;
+function tabbed(items,cur,render){const id="tabs"+(++tabSeq),box=h("div");
+ const draw=focus=>{box.textContent="";const i=items.findIndex(x=>x[0]===cur);
+  const move=e=>{const n={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:items.length-1}[e.key];if(n===undefined)return;e.preventDefault();cur=items[(n+items.length)%items.length][0];draw(true)};
+  box.append(h("div",{class:"tabs",style:"flex-wrap:wrap",role:"tablist"},...items.map(([k,l])=>h("button",{class:cur===k?"on":"",role:"tab",id:id+"-"+k,"aria-selected":String(cur===k),"aria-controls":id+"-panel",tabindex:cur===k?"0":"-1",onclick:()=>{cur=k;draw()},onkeydown:move},l))),
+   h("div",{role:"tabpanel",id:id+"-panel","aria-labelledby":id+"-"+cur,tabindex:"0"},render(cur)));
+  if(focus)box.querySelector('[aria-selected="true"]').focus()};
+ draw();return box}
+function integrations(){return tabbed(INTEGRATIONS.map(([k,l])=>[k,l]),"vercel",k=>{const x=INTEGRATIONS.find(i=>i[0]===k);return codeBlock(x[2](),true,x[3])})}
 function integrationsView(){return h("div",{},
  h("p",{class:"sub",style:"color:var(--mut);max-width:44em;margin:0 0 16px"},"Anything that takes an OpenAI base URL works: base URL ",h("code",{},location.origin+"/v1"),", model ",h("code",{},M()),", and your key in FLISK_API_KEY. Keep the key out of browser code."),
  integrations(),
@@ -208,14 +229,13 @@ function validatorOutput(text){const box=h("div",{class:"demo-q",style:"font:13p
  text.split("\n").forEach((l,i)=>{if(i)box.append("\n");const m=/^([A-Za-z][\w.\[\]]*): (.*)$/.exec(l);
   if(m)box.append(h("span",{class:"hljs-attr"},m[1]),h("span",{class:"hljs-punctuation"},": "),h("span",{class:"hljs-string"},m[2]));
   else box.append(h("span",{class:"hljs-comment"},l))});return box}
-function demos(){let cur=DEMOS[0][0];const box=h("div");const draw=()=>{const [,,send,get,note,cta]=DEMOS.find(d=>d[0]===cur);box.textContent="";
- box.append(h("div",{class:"tabs",style:"flex-wrap:wrap",role:"tablist"},...DEMOS.map(([k,l])=>h("button",{class:cur===k?"on":"",role:"tab","aria-selected":String(cur===k),onclick:()=>{cur=k;draw()}},l))),
-  h("div",{class:"demo card"},h("div",{class:"demo-label"},"You send"),
+function demos(){return tabbed(DEMOS.map(([k,l])=>[k,l]),DEMOS[0][0],k=>{const [,,send,get,note,cta]=DEMOS.find(d=>d[0]===k);
+ return h("div",{class:"demo card"},h("div",{class:"demo-label"},"You send"),
    send.text?h("div",{class:"demo-q"},send.text):codeBlock(send.code),
    send.after?validatorOutput(send.after):null,
    h("div",{class:"demo-label"},"You get"),typeof get==="string"?codeBlock(get):h("div",{class:"demo-q",style:"white-space:pre-wrap"},get.prose),
    h("div",{class:"demo-note"},note),
-   cta?h("p",{style:"margin:12px 0 0"},h("a",{class:"btn sm",href:cta[1]},cta[0])):null))};draw();return box}
+   cta?h("p",{style:"margin:12px 0 0"},h("a",{class:"btn sm",href:cta[1]},cta[0])):null)})}
 
 /* ---------- use cases ---------- */
 const USECASES=[
@@ -266,7 +286,7 @@ const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","L
 function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
-  h("nav",{class:"site-nav"},h("a",{class:"brand",href:"/",html:"<img src=\"/icon.svg\" alt=\"\" width=\"26\" height=\"26\"><span>Flisk Inference</span>"}),h("div",{class:"nav-r"},
+  h("nav",{class:"site-nav"},h("a",{class:"brand",href:"/",html:"<img src=\"/icon.svg\" alt=\"\" aria-hidden=\"true\" width=\"26\" height=\"26\"><span>Flisk Inference</span>"}),h("div",{class:"nav-r"},
    h("a",{class:"btn sm",href:"#demos"},"Demos"),
    h("a",{class:"btn sm",href:"#jobs"},"Use cases"),
    h("a",{class:"btn sm",href:"#how"},"Results"),
@@ -299,7 +319,7 @@ function landing(){
 const NAV=[["overview","Overview","home"],["usecases","Use cases","bulb"],["keys","API keys","key"],["usage","Usage","chart"],["integrations","Integrations","plug"],["docs","Docs","book"]];
 function shell(section,title,body){
  return h("div",{class:"app"},
-  h("aside",{},h("a",{class:"brand",href:"/",html:"<img src=\"/icon.svg\" alt=\"\" width=\"26\" height=\"26\"><span>Inference</span>"}),
+  h("aside",{},h("a",{class:"brand",href:"/",html:"<img src=\"/icon.svg\" alt=\"\" aria-hidden=\"true\" width=\"26\" height=\"26\"><span>Inference</span>"}),
    h("nav",{class:"nav"},...NAV.map(([k,l,i])=>h("a",{href:"?section="+k,class:section===k?"on":"","aria-current":section===k?"page":null,html:SVG[i]+"<span>"+l+"</span>"}))),
    h("div",{class:"foot"},h("div",{class:"who"},me&&me.avatar?h("img",{src:me.avatar,alt:"",width:30,height:30}):h("div",{class:"avatar"}),h("span",{},me?"@"+me.login:"Not signed in")),
     h("div",{style:"display:flex;gap:8px"},h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),me?h("a",{class:"btn sm",href:"/auth/logout"},"Sign out"):null))),
@@ -328,9 +348,15 @@ async function overview(){
 async function keysView(){
  const ks=await api("/api/keys");const wrap=h("div"),fresh=h("div");
  const reload=async()=>{wrap.replaceWith(await keysView());};
- const newBtn=h("button",{class:"btn primary",onclick:async()=>{const name=prompt("Name for this key","default");if(name===null)return;try{const k=await api("/api/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})});fresh.textContent="";fresh.append(h("div",{class:"card newkey"},h("b",{},"Copy this key now: it is shown once."),codeBlock(k.key),h("p",{style:"color:var(--mut);margin:12px 0 6px;font-size:13px"},"Try it in a terminal:"),codeBlock(curl(k.key),false,"bash")));const list=await api("/api/keys");tbl(list)}catch(e){alert(e.message)}}},"New API key");
+ const nameIn=h("input",{type:"text",class:"keyname",placeholder:"Key name, for example ci",maxlength:"40","aria-label":"Name for the new key"});
+ const createBtn=h("button",{class:"btn primary",type:"submit"},"Create key");
+ const newBtn=h("form",{class:"newkey-form",onsubmit:async e=>{e.preventDefault();createBtn.disabled=true;fresh.textContent="";
+  try{const k=await api("/api/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:nameIn.value.trim()||"default"})});nameIn.value="";
+   fresh.append(h("div",{class:"card newkey"},h("b",{},"Copy this key now: it is shown once."),codeBlock(k.key),h("p",{style:"color:var(--mut);margin:12px 0 6px;font-size:13px"},"Try it in a terminal:"),codeBlock(curl(k.key),false,"bash")));tbl(await api("/api/keys"))}
+  catch(err){fresh.append(h("div",{class:"card",role:"alert",style:"border-color:var(--red);margin-bottom:14px"},"Could not create the key: "+err.message))}
+  finally{createBtn.disabled=false}}},nameIn,createBtn);
  const tb=h("div");
- const row=k=>h("tr",{},h("td",{},k.name),h("td",{class:"mono"},k.prefix+"…"+k.last4),h("td",{},new Date(k.created).toLocaleDateString()),h("td",{},ago(k.lastUsed)),
+ const row=k=>h("tr",{},h("td",{},k.name),h("td",{class:"mono"},k.prefix+"…"+k.last4),h("td",{},fmtDate(k.created)),h("td",{},ago(k.lastUsed)),
   h("td",{style:"text-align:right"},h("button",{class:"btn sm danger",onclick:async()=>{if(confirm("Revoke key \""+k.name+"\"? Requests using it will stop working.")){await api("/api/keys/"+k.id,{method:"DELETE"});tbl(await api("/api/keys"))}}},"Revoke")));
  const tbl=list=>{tb.textContent="";tb.append(list.length?h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},...["Name","Key","Created","Last used",""].map(x=>h("th",{},x)))),h("tbody",{},...list.map(row)))):h("div",{class:"card empty"},h("b",{},"No keys yet"),"Create one to start calling the model."))};
  tbl(ks);
