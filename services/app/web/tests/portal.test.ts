@@ -210,6 +210,15 @@ describe("bootstrap key", () => {
 });
 
 describe("pages for people", () => {
+  it("serves robots.txt that names the sitemap, and a sitemap with the home page", async () => {
+    const p = make();
+    const robots = await p.fetch(req("/robots.txt"));
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain(`Sitemap: ${BASE}/sitemap.xml`);
+    const sitemap = await p.fetch(req("/sitemap.xml"));
+    expect(sitemap.headers.get("content-type")).toContain("application/xml");
+    expect(await sitemap.text()).toContain(`<loc>${BASE}/</loc>`);
+  });
   it("shows a 404 page to a browser and JSON to a program", async () => {
     const p = make();
     const page = await p.fetch(req("/nope", { headers: { accept: "text/html,application/xhtml+xml" } }));
