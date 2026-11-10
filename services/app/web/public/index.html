@@ -6,6 +6,7 @@
 <meta name="description" content="Plain English in, valid Flisk service.json out. An open model with Flisk's rules behind an OpenAI-compatible API, free beta.">
 <title>Flisk Inference</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <script src="https://flisk.si/assets/bar.js" defer></script>
 <style>
@@ -120,6 +121,19 @@ main header h1{font-size:28px}
  .hero>div:first-child{padding:44px 16px 36px;border-right:0;border-bottom:1px solid var(--line2)}.demo{padding:0 16px 24px}.demo::before{margin:0 -16px 20px;flex-basis:44px;min-height:44px;max-height:44px}
  .grid,.grid.two{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.grid,.grid.two{grid-template-columns:1fr}.tabs{width:auto}}
+/* code highlighting (highlight.js classes), colours from the site palette */
+:root{--hl-kw:#6ee7a0;--hl-str:#f5c26b;--hl-num:#7dd3fc;--hl-attr:#c4b5fd;--hl-fn:#f4f4f5;--hl-com:rgba(236,236,241,.45);--hl-var:#fda4af}
+:root[data-theme=light]{--hl-kw:#137a3a;--hl-str:#9a5300;--hl-num:#0369a1;--hl-attr:#6d28d9;--hl-fn:#121212;--hl-com:#77777c;--hl-var:#be123c}
+.code pre{color:var(--ink)}
+.hljs-keyword,.hljs-selector-tag,.hljs-meta .hljs-keyword{color:var(--hl-kw);font-weight:600}
+.hljs-string,.hljs-template-string,.hljs-regexp{color:var(--hl-str)}
+.hljs-number,.hljs-literal{color:var(--hl-num)}
+.hljs-attr,.hljs-attribute,.hljs-property,.hljs-symbol{color:var(--hl-attr)}
+.hljs-title,.hljs-title.function_,.hljs-built_in,.hljs-title.class_{color:var(--hl-fn);font-weight:600}
+.hljs-variable,.hljs-template-variable,.hljs-subst,.hljs-params{color:var(--hl-var)}
+.hljs-comment,.hljs-quote,.hljs-meta{color:var(--hl-com);font-style:italic}
+.hljs-punctuation,.hljs-operator{color:var(--mut)}
+.code .lang{position:absolute;top:13px;right:76px;font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 </style>
 </head>
 <body>
@@ -150,7 +164,11 @@ function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?
 const api=async(p,o)=>{const r=await fetch(p,o);if(r.status===401)return null;const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j};
 let me=null,cfg={name:"Flisk Inference",models:["flisk-wolf"]},status=null;
 
-function codeBlock(text,label){const pre=h("pre");pre.textContent=text;return h("div",{class:"code"},h("button",{class:"btn sm copy",onclick:()=>copy(text),"aria-label":"Copy code"},"Copy"),label?h("div",{class:"bar"},h("i"),h("i"),h("i")):null,pre)}
+const LANG_NAMES={javascript:"JavaScript",python:"Python",bash:"Shell",yaml:"YAML",json:"JSON"};
+function codeBlock(text,label,lang){const pre=h("pre"),code=h("code");
+ if(lang&&window.hljs&&hljs.getLanguage(lang)){code.innerHTML=hljs.highlight(text,{language:lang,ignoreIllegals:true}).value;code.className="hljs language-"+lang}else code.textContent=text;
+ pre.append(code);
+ return h("div",{class:"code"},h("button",{class:"btn sm copy",onclick:()=>copy(text),"aria-label":"Copy code"},"Copy"),label?h("div",{class:"bar"},h("i"),h("i"),h("i"),lang&&LANG_NAMES[lang]?h("span",{class:"lang"},LANG_NAMES[lang]):null):null,pre)}
 const ASK="Write a Flisk service.json for an HTTP API called orders-api in the shop stack on port 4000 that depends on postgres.";
 const curl=(key="YOUR_API_KEY")=>`curl ${location.origin}/v1/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    "messages": [{"role":"user","content":"${ASK}"}]\n  }'`;
 const py=(key="YOUR_API_KEY")=>`from openai import OpenAI\n\nclient = OpenAI(base_url="${location.origin}/v1", api_key="${key}")\nr = client.chat.completions.create(\n    model="${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`;
@@ -159,14 +177,14 @@ const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client =
 /* ---------- integrations: every SDK snippet here was run against this endpoint on 2026-11-10 ---------- */
 const M=()=>(cfg.models&&cfg.models[0])||"flisk-wolf";
 const INTEGRATIONS=[
- ["vercel","Vercel AI SDK",()=>`// npm i ai @ai-sdk/openai-compatible\nimport { generateText } from "ai";\nimport { createOpenAICompatible } from "@ai-sdk/openai-compatible";\n\nconst flisk = createOpenAICompatible({\n  name: "flisk",\n  baseURL: "${location.origin}/v1",\n  apiKey: process.env.FLISK_API_KEY,\n});\n\nconst { text } = await generateText({\n  model: flisk("${M()}"),\n  prompt: "${ASK}",\n});\nconsole.log(JSON.parse(text));`],
- ["node","OpenAI SDK (Node)",()=>node("process.env.FLISK_API_KEY").replace('apiKey: "process.env.FLISK_API_KEY"',"apiKey: process.env.FLISK_API_KEY")],
- ["python","OpenAI SDK (Python)",()=>py("KEY").replace('api_key="KEY"','api_key=os.environ["FLISK_API_KEY"]').replace("from openai import OpenAI","import os\nfrom openai import OpenAI")],
- ["langchain","LangChain",()=>`// npm i @langchain/openai\nimport { ChatOpenAI } from "@langchain/openai";\n\nconst llm = new ChatOpenAI({\n  model: "${M()}",\n  apiKey: process.env.FLISK_API_KEY,\n  configuration: { baseURL: "${location.origin}/v1" },\n});\nconst r = await llm.invoke("${ASK}");\nconsole.log(r.content);`],
- ["litellm","LiteLLM",()=>`# pip install litellm\nimport os, litellm\n\nr = litellm.completion(\n    model="openai/${M()}",  # "openai/" = any OpenAI-compatible server\n    api_base="${location.origin}/v1",\n    api_key=os.environ["FLISK_API_KEY"],\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`],
- ["ci","CI: fix a rejected file",()=>`# GitHub Actions step: when a service.json is rejected, ask for the smallest fix\n# and save it as suggested-fix.json for a reviewer (never commit it unreviewed).\n- name: Suggest a fix for a rejected service.json\n  if: failure()\n  env:\n    FLISK_API_KEY: \${{ secrets.FLISK_API_KEY }}\n    FILE: services/api/service.json\n  run: |\n    ERRORS=$(flisk config verify 2>&1 || true)   # or any validator output\n    jq -n --rawfile file "$FILE" --arg err "$ERRORS" '{model: "${M()}", messages: [{role: "user",\n      content: ("This Flisk service.json is rejected:\\n" + $file + "\\n\\nThe validator says:\\n" + $err +\n        "\\n\\nFix it with the smallest change that makes it valid, keeping every other field. Reply with the corrected JSON object only.")}]}' \\\n    | curl -s ${location.origin}/v1/chat/completions \\\n        -H "Authorization: Bearer $FLISK_API_KEY" -H "Content-Type: application/json" -d @- \\\n    | jq -r '.choices[0].message.content' > suggested-fix.json`],
- ["curl","curl",()=>curl("$FLISK_API_KEY")]];
-function integrations(){let cur="vercel";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs",style:"flex-wrap:wrap"},...INTEGRATIONS.map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock(INTEGRATIONS.find(x=>x[0]===cur)[2](),true))};draw();return box}
+ ["vercel","Vercel AI SDK",()=>`// npm i ai @ai-sdk/openai-compatible\nimport { generateText } from "ai";\nimport { createOpenAICompatible } from "@ai-sdk/openai-compatible";\n\nconst flisk = createOpenAICompatible({\n  name: "flisk",\n  baseURL: "${location.origin}/v1",\n  apiKey: process.env.FLISK_API_KEY,\n});\n\nconst { text } = await generateText({\n  model: flisk("${M()}"),\n  prompt: "${ASK}",\n});\nconsole.log(JSON.parse(text));`,"javascript"],
+ ["node","OpenAI SDK (Node)",()=>node("process.env.FLISK_API_KEY").replace('apiKey: "process.env.FLISK_API_KEY"',"apiKey: process.env.FLISK_API_KEY"),"javascript"],
+ ["python","OpenAI SDK (Python)",()=>py("KEY").replace('api_key="KEY"','api_key=os.environ["FLISK_API_KEY"]').replace("from openai import OpenAI","import os\nfrom openai import OpenAI"),"python"],
+ ["langchain","LangChain",()=>`// npm i @langchain/openai\nimport { ChatOpenAI } from "@langchain/openai";\n\nconst llm = new ChatOpenAI({\n  model: "${M()}",\n  apiKey: process.env.FLISK_API_KEY,\n  configuration: { baseURL: "${location.origin}/v1" },\n});\nconst r = await llm.invoke("${ASK}");\nconsole.log(r.content);`,"javascript"],
+ ["litellm","LiteLLM",()=>`# pip install litellm\nimport os, litellm\n\nr = litellm.completion(\n    model="openai/${M()}",  # "openai/" = any OpenAI-compatible server\n    api_base="${location.origin}/v1",\n    api_key=os.environ["FLISK_API_KEY"],\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`,"python"],
+ ["ci","CI: fix a rejected file",()=>`# GitHub Actions step: when a service.json is rejected, ask for the smallest fix\n# and save it as suggested-fix.json for a reviewer (never commit it unreviewed).\n- name: Suggest a fix for a rejected service.json\n  if: failure()\n  env:\n    FLISK_API_KEY: \${{ secrets.FLISK_API_KEY }}\n    FILE: services/api/service.json\n  run: |\n    ERRORS=$(flisk config verify 2>&1 || true)   # or any validator output\n    jq -n --rawfile file "$FILE" --arg err "$ERRORS" '{model: "${M()}", messages: [{role: "user",\n      content: ("This Flisk service.json is rejected:\\n" + $file + "\\n\\nThe validator says:\\n" + $err +\n        "\\n\\nFix it with the smallest change that makes it valid, keeping every other field. Reply with the corrected JSON object only.")}]}' \\\n    | curl -s ${location.origin}/v1/chat/completions \\\n        -H "Authorization: Bearer $FLISK_API_KEY" -H "Content-Type: application/json" -d @- \\\n    | jq -r '.choices[0].message.content' > suggested-fix.json`,"yaml"],
+ ["curl","curl",()=>curl("$FLISK_API_KEY"),"bash"]];
+function integrations(){let cur="vercel";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs",style:"flex-wrap:wrap"},...INTEGRATIONS.map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock(INTEGRATIONS.find(x=>x[0]===cur)[2](),true,INTEGRATIONS.find(x=>x[0]===cur)[3]))};draw();return box}
 function integrationsView(){return h("div",{},
  h("p",{class:"sub",style:"color:var(--mut);max-width:44em;margin:0 0 16px"},"Anything that takes an OpenAI base URL works: base URL ",h("code",{},location.origin+"/v1"),", model ",h("code",{},M()),", and your key in FLISK_API_KEY. Keep the key out of browser code."),
  integrations(),
@@ -250,7 +268,7 @@ function landing(){
     h("div",{class:"demo-label"},"You ask"),
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
     h("div",{class:"demo-label"},"You get"),
-    codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}'),
+    codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}',false,"json"),
     h("div",{class:"demo-note"},"A real answer from the model."))),
   h("section",{class:"block",id:"demos"},h("h2",{},"See it work"),h("p",{class:"sub"},"Five real runs: write a file, a one-shot job, fix a rejected file, ask the docs, and suggest fixes in CI. Nothing here is edited."),demos()),
   h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Create a key, then point any OpenAI-compatible client at this address."),integrations()),
@@ -296,7 +314,7 @@ async function overview(){
 async function keysView(){
  const ks=await api("/api/keys");const wrap=h("div"),fresh=h("div");
  const reload=async()=>{wrap.replaceWith(await keysView());};
- const newBtn=h("button",{class:"btn primary",onclick:async()=>{const name=prompt("Name for this key","default");if(name===null)return;try{const k=await api("/api/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})});fresh.textContent="";fresh.append(h("div",{class:"card newkey"},h("b",{},"Copy this key now: it is shown once."),codeBlock(k.key),h("p",{style:"color:var(--mut);margin:12px 0 6px;font-size:13px"},"Try it in a terminal:"),codeBlock(curl(k.key))));const list=await api("/api/keys");tbl(list)}catch(e){alert(e.message)}}},"New API key");
+ const newBtn=h("button",{class:"btn primary",onclick:async()=>{const name=prompt("Name for this key","default");if(name===null)return;try{const k=await api("/api/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})});fresh.textContent="";fresh.append(h("div",{class:"card newkey"},h("b",{},"Copy this key now: it is shown once."),codeBlock(k.key),h("p",{style:"color:var(--mut);margin:12px 0 6px;font-size:13px"},"Try it in a terminal:"),codeBlock(curl(k.key),false,"bash")));const list=await api("/api/keys");tbl(list)}catch(e){alert(e.message)}}},"New API key");
  const tb=h("div");
  const row=k=>h("tr",{},h("td",{},k.name),h("td",{class:"mono"},k.prefix+"…"+k.last4),h("td",{},new Date(k.created).toLocaleDateString()),h("td",{},ago(k.lastUsed)),
   h("td",{style:"text-align:right"},h("button",{class:"btn sm danger",onclick:async()=>{if(confirm("Revoke key \""+k.name+"\"? Requests using it will stop working.")){await api("/api/keys/"+k.id,{method:"DELETE"});tbl(await api("/api/keys"))}}},"Revoke")));
