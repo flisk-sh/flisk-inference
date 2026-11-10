@@ -347,6 +347,16 @@ describe("site icons", () => {
     expect(html).toContain('<meta property="og:image" content="https://inference.flisk.si/og.png">');
     expect(html).not.toContain("SVG.logo");
   });
+  it("names the product first in the homepage title and share tags", async () => {
+    const html = await (await make().fetch(req("/"))).text();
+    const title = "Flisk Inference: plain English in, valid service.json out";
+    expect(html).toContain(`<title>${title}</title>`);
+    expect(html).toContain(`<meta property="og:title" content="${title}">`);
+    expect(html).toContain(`<meta name="twitter:title" content="${title}">`);
+    expect(html).toContain('<meta property="og:site_name" content="Flisk Inference">');
+    expect(html).toContain('<link rel="canonical" href="https://inference.flisk.si/">');
+    expect(html).toContain('<meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">');
+  });
   it("serves the share card as a 1200x630 PNG, on GET and HEAD, at the absolute og:image and twitter:image URL", async () => {
     const pub = join(import.meta.dir, "..", "public");
     const portal = make({ asset: (path) => new Response(Bun.file(join(pub, path))) });
