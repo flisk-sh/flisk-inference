@@ -11,6 +11,11 @@ Built on [flisk-template-portal](https://github.com/flisk-sh/flisk-template-port
 - **API:** `POST /v1/chat/completions` and `GET /v1/models`, one model, 30 requests a minute per key, 1,024 output tokens, no streaming.
 - **Safe by default:** GitHub sign-in limited to an allowlist, signed cookies, cross-origin writes refused, rate limits, a body size cap. 25 tests.
 
+## Examples
+
+- **[`examples/ci/suggest-fixes.sh`](examples/ci/suggest-fixes.sh):** runs `flisk config verify --json` and, for each rejected `service.json`, asks the model for the smallest fix and writes it next to the file as `service.json.suggested` with a diff. Needs `FLISK_INFERENCE_KEY`, `curl` and `jq`. Post the suggestion for review; do not merge it unread.
+- The landing page's **See it work** section shows five real runs (write, a one-shot job, repair, asking the docs, and this CI script), each checked with `flisk config verify`.
+
 ## Run it
 
 ```bash
