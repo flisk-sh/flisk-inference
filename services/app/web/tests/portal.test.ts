@@ -347,6 +347,22 @@ describe("site icons", () => {
     expect(html).toContain('<meta property="og:image" content="https://inference.flisk.si/og.png">');
     expect(html).not.toContain("SVG.logo");
   });
+  it("serves the share card as a 1200x630 PNG, on GET and HEAD, at the absolute og:image and twitter:image URL", async () => {
+    const pub = join(import.meta.dir, "..", "public");
+    const portal = make({ asset: (path) => new Response(Bun.file(join(pub, path))) });
+    const png = new Uint8Array(await (await portal.fetch(req("/og.png"))).arrayBuffer());
+    expect([...png.slice(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+    const dv = new DataView(png.buffer);
+    expect([dv.getUint32(16), dv.getUint32(20)]).toEqual([1200, 630]);
+    const head = await portal.fetch(new Request("http://localhost/og.png", { method: "HEAD" }));
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toContain("image/png");
+    expect(await head.text()).toBe("");
+    expect((await portal.fetch(new Request("http://localhost/", { method: "HEAD" }))).status).toBe(200);
+    const html = await (await portal.fetch(req("/"))).text();
+    expect(html).toContain('<meta name="twitter:image" content="https://inference.flisk.si/og.png">');
+    expect(html).toContain('<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">');
+  });
   it("answers 404 for the icons when no asset handler is given", async () => {
     expect((await make().fetch(req("/icon.svg"))).status).toBe(404);
   });
