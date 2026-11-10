@@ -1,5 +1,7 @@
 // Entry point. Everything is configured by environment variables; see the README.
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileStore } from "./file-store";
 import { createPortal, type GithubUser } from "./portal";
 
 const production = process.env.NODE_ENV === "production";
@@ -27,8 +29,8 @@ const portal = createPortal({
   name: process.env.PORTAL_NAME ?? "Portal",
   publicUrl,
   upstreamUrl: (process.env.UPSTREAM_URL ?? "http://127.0.0.1:11434").replace(/\/$/, ""),
-  dataDir: process.env.DATA_DIR ?? join(import.meta.dir, "..", "data"),
-  publicDir: join(import.meta.dir, "..", "public"),
+  store: fileStore(process.env.DATA_DIR ?? join(import.meta.dir, "..", "data")),
+  indexHtml: () => readFileSync(join(import.meta.dir, "..", "public", "index.html"), "utf-8"),
   allowedModels: (process.env.ALLOWED_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   github: clientId && clientSecret ? { clientId, clientSecret } : undefined,
   devLogin,

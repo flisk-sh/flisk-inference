@@ -1,5 +1,25 @@
 # Deploying without a laptop
 
+## Cloudflare (free)
+
+This is what serves `inference.flisk.si`. The portal runs as a Worker, users and keys are in D1, and the model is Workers AI, so there is no server to run and nothing on a laptop. Config: [`services/app/web/wrangler.toml`](services/app/web/wrangler.toml).
+
+```bash
+cd services/app/web
+bunx wrangler@4 d1 create flisk-inference            # once; put the id in wrangler.toml
+bunx wrangler@4 d1 migrations apply flisk-inference --remote
+bunx wrangler@4 secret put GITHUB_CLIENT_ID          # GitHub OAuth app, callback https://<domain>/auth/callback
+bunx wrangler@4 secret put GITHUB_CLIENT_SECRET
+bunx wrangler@4 secret put SESSION_SECRET            # any long random string (openssl rand -hex 32)
+bunx wrangler@4 deploy
+```
+
+`DAILY_LIMIT` caps model requests per day across all keys (429 after it), so the beta stays inside the Workers AI free allowance. Set `ALLOWED_LOGINS` as a var to limit sign-in to a list of GitHub logins.
+
+## Your own server (Ollama)
+
+The rest of this page runs the portal and your own model server in containers instead.
+
 The service is two processes: the **portal** (this repo: sign-in, API keys, usage, the `/v1` endpoint) and a **model server** (Ollama) that the portal forwards to. Both run in containers.
 
 ## What you need
