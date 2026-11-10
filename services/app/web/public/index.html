@@ -72,6 +72,8 @@ const SVG={
  key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3"/></svg>',
  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5"/></svg>',
+ bulb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>',
+ plug:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></svg>',
  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>'};
 /* tiny DOM helper: text goes in as text, never as HTML */
 function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="html")e.innerHTML=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v)}
@@ -92,6 +94,67 @@ const py=(key="YOUR_API_KEY")=>`from openai import OpenAI\n\nclient = OpenAI(bas
 const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: "${location.origin}/v1", apiKey: "${key}" });\nconst r = await client.chat.completions.create({\n  model: "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n  messages: [{ role: "user", content: "Write a Flisk service.json for a worker called emailer in the shop stack." }],\n});\nconsole.log(r.choices[0].message.content);`;
 function samples(){let cur="curl";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs"},...[["curl","curl"],["python","Python"],["node","Node"]].map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock({curl,python:py,node}[cur](),true))};draw();return box}
 
+/* ---------- integrations: every SDK snippet here was run against this endpoint on 2026-11-10 ---------- */
+const M=()=>(cfg.models&&cfg.models[0])||"flisk-wolf";
+const ASK="Write a Flisk service.json for a worker called emailer in the shop stack.";
+const INTEGRATIONS=[
+ ["vercel","Vercel AI SDK",()=>`// npm i ai @ai-sdk/openai-compatible\nimport { generateText } from "ai";\nimport { createOpenAICompatible } from "@ai-sdk/openai-compatible";\n\nconst flisk = createOpenAICompatible({\n  name: "flisk",\n  baseURL: "${location.origin}/v1",\n  apiKey: process.env.FLISK_API_KEY,\n});\n\nconst { text } = await generateText({\n  model: flisk("${M()}"),\n  prompt: "${ASK}",\n});\nconsole.log(JSON.parse(text));`],
+ ["node","OpenAI SDK (Node)",()=>node("process.env.FLISK_API_KEY").replace('apiKey: "process.env.FLISK_API_KEY"',"apiKey: process.env.FLISK_API_KEY")],
+ ["python","OpenAI SDK (Python)",()=>py("KEY").replace('api_key="KEY"','api_key=os.environ["FLISK_API_KEY"]').replace("from openai import OpenAI","import os\nfrom openai import OpenAI")],
+ ["langchain","LangChain",()=>`// npm i @langchain/openai\nimport { ChatOpenAI } from "@langchain/openai";\n\nconst llm = new ChatOpenAI({\n  model: "${M()}",\n  apiKey: process.env.FLISK_API_KEY,\n  configuration: { baseURL: "${location.origin}/v1" },\n});\nconst r = await llm.invoke("${ASK}");\nconsole.log(r.content);`],
+ ["litellm","LiteLLM",()=>`# pip install litellm\nimport os, litellm\n\nr = litellm.completion(\n    model="openai/${M()}",  # "openai/" = any OpenAI-compatible server\n    api_base="${location.origin}/v1",\n    api_key=os.environ["FLISK_API_KEY"],\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`],
+ ["ci","CI: fix a rejected file",()=>`# GitHub Actions step: when a service.json is rejected, ask for the smallest fix\n# and save it as suggested-fix.json for a reviewer (never commit it unreviewed).\n- name: Suggest a fix for a rejected service.json\n  if: failure()\n  env:\n    FLISK_API_KEY: \${{ secrets.FLISK_API_KEY }}\n    FILE: services/api/service.json\n  run: |\n    ERRORS=$(flisk config verify 2>&1 || true)   # or any validator output\n    jq -n --rawfile file "$FILE" --arg err "$ERRORS" '{model: "${M()}", messages: [{role: "user",\n      content: ("This Flisk service.json is rejected:\\n" + $file + "\\n\\nThe validator says:\\n" + $err +\n        "\\n\\nFix it with the smallest change that makes it valid, keeping every other field. Reply with the corrected JSON object only.")}]}' \\\n    | curl -s ${location.origin}/v1/chat/completions \\\n        -H "Authorization: Bearer $FLISK_API_KEY" -H "Content-Type: application/json" -d @- \\\n    | jq -r '.choices[0].message.content' > suggested-fix.json`],
+ ["curl","curl",()=>curl("$FLISK_API_KEY")]];
+function integrations(){let cur="vercel";const box=h("div");const draw=()=>{box.textContent="";box.append(h("div",{class:"tabs",style:"flex-wrap:wrap"},...INTEGRATIONS.map(([k,l])=>h("button",{class:cur===k?"on":"",onclick:()=>{cur=k;draw()}},l))),codeBlock(INTEGRATIONS.find(x=>x[0]===cur)[2](),true))};draw();return box}
+function integrationsView(){return h("div",{},
+ h("p",{class:"sub",style:"color:var(--mut);max-width:44em;margin:0 0 16px"},"It is a standard OpenAI-compatible endpoint, so anything that lets you set a base URL works: base URL ",h("code",{},location.origin+"/v1"),", model ",h("code",{},M()),", and your key. Keep the key in an environment variable (FLISK_API_KEY), never in browser code."),
+ integrations(),
+ h("p",{style:"color:var(--faint);font-size:13px;margin-top:12px"},"The SDK snippets were run against this endpoint on 10 Nov 2026: OpenAI SDK for Node and Python, Vercel AI SDK, LangChain and LiteLLM all returned a valid service.json in about 1.3 seconds. Streaming is not supported, so use the non-streaming calls (generateText, invoke, create)."),
+ h("h3",{style:"margin:26px 0 10px;font-size:17px"},"Do I need MCP?"),
+ h("p",{style:"color:var(--mut);max-width:44em;margin:0"},"Usually not. Coding agents such as Claude Code or Cursor already work with Flisk through ",h("code",{},"flisk mcp"),", which creates and checks services for them; they do not need a second model. Use this API when you are building something yourself: a CI step, an internal tool, a bot, or an agent of your own that should hand config work to a small, fixed-prompt model."))}
+
+/* ---------- use cases ---------- */
+const USECASES=[
+ ["Fix red CI without waiting for the platform team","Platform and DevEx teams",
+  "A pull request changes a service.json, flisk config verify rejects it, and the author waits for the one person who knows the schema.",
+  "A CI step sends the validator errors and the file. The model replies with the smallest change that passes, saved as a suggestion for review.",
+  "A suggested fix in about 2 seconds. In our test it turned \"Billing API\" / \"api\" / \"4300\" into billing-api / backend / 4300 in one call."],
+ ["Move existing services to Flisk","Tech leads migrating a repo",
+  "Ten services, each needing a service.json. Writing them means learning nine app types and the field rules first.",
+  "Describe each service in one sentence (\"Node API on port 4000 that needs Postgres\"). Review the files it writes, then run flisk config verify.",
+  "First drafts of every file in minutes, all in the same shape, checked by the real validator before anyone runs flisk up."],
+ ["\"New service\" in your internal portal or Slack","Teams with a developer portal",
+  "People ask in chat how to add a worker or a database job, and the answer is copy-paste from an old repo.",
+  "A form or Slack command sends the request in plain words and gets back a service.json that already passes the validator.",
+  "Self-service for routine services. The rules live in one prompt, so every team gets the same answer for the same request."],
+ ["A cheap specialist inside your own agent","Teams building agents",
+  "Your agent uses a large general model for everything, including small structured jobs it sometimes gets wrong.",
+  "Give config writing to this model through the Vercel AI SDK or LangChain, and check the output with flisk config verify.",
+  "A narrow job with a known prompt and an output you can check, instead of hoping a general model knows Flisk."]];
+function useCasesView(){return h("div",{},
+ h("div",{class:"card",style:"margin-bottom:18px"},h("b",{},"What problem it solves"),
+  h("p",{style:"color:var(--mut);margin:6px 0 0;max-width:46em"},"In a Flisk project every service is described by a small service.json: name, type, stack, port, what it depends on. Get a field wrong and flisk up refuses to start. This model writes those files from a plain-English sentence, and repairs a rejected one from the validator's error message, through a standard OpenAI-compatible API you can call from CI, tools and agents.")),
+ h("div",{class:"grid",style:"grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"},...USECASES.map(([t,who,problem,how,gain])=>h("div",{class:"card"},
+  h("span",{class:"tag ok"},who),h("h3",{style:"font-size:16px;margin:10px 0 8px"},t),
+  ...[["Problem",problem],["How",how],["What you get",gain]].map(([k,v])=>h("p",{style:"margin:0 0 8px;font-size:14px;color:var(--mut)"},h("b",{style:"color:var(--ink)"},k+": "),v))))),
+ h("h3",{style:"margin:30px 0 10px;font-size:18px"},"For tech leads: should your team use it?"),
+ h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[
+  ["Why not just ask ChatGPT or Claude?","You can, and on our natural-wording test Claude scored 18 of 29, against 17 for the small model: it is not more accurate. The reasons to use this are elsewhere: one fixed set of Flisk rules for the whole team, the same answer for the same request (temperature 0), and a small model you can run yourself."],
+  ["Can it stay inside our network?","Yes. The same rules are an Ollama Modelfile in the open-source repo; run it on your own machine or server and nothing leaves. The hosted beta is for trying it and for small volumes."],
+  ["How do we trust the output?","Do not trust it blindly: every answer is a file that flisk config verify checks. Roll it out as a suggestion (a CI comment or a draft), keep a human approving, and never auto-merge."],
+  ["What does it cost?","Nothing during the beta, within the limits on the Overview page. There is no billing and no card."],
+  ["What is it not for?","General coding questions, long documents, or anything that is not Flisk config. Other jobs on the landing page are marked untested on purpose."]].map(([q,a])=>h("tr",{},h("td",{style:"width:32%;font-weight:600;vertical-align:top"},q),h("td",{style:"color:var(--mut)"},a)))))),
+ h("p",{style:"margin-top:16px"},h("a",{class:"btn sm primary",href:"?section=integrations"},"See the integrations"),h("span",{style:"display:inline-block;width:8px"}),h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the test results")))}
+
+/* ---------- limits ---------- */
+function limitsCard(today){const L=cfg.limits||{};const used=today?today.used:0,lim=today&&today.limit;const pct=lim?Math.min(100,used/lim*100):0;
+ return h("div",{class:"card",style:"margin-bottom:18px"},
+  h("div",{class:"chart-head"},h("b",{},"Free beta limits"),h("span",{class:"tag assess"},"No billing, no card")),
+  lim?h("div",{style:"margin-bottom:14px"},h("div",{style:"display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px"},h("span",{},"Shared by everyone today"),h("b",{class:"mono"},fmt(used)+" / "+fmt(lim)+" requests")),
+   h("div",{class:"meter",style:"height:8px"},h("b",{style:`width:${pct}%;background:${pct>=90?"var(--red)":pct>=60?"var(--amber)":"var(--acc)"}`})),
+   h("small",{style:"color:var(--faint)"},"Resets at 00:00 UTC. After the limit, calls return 429 until the reset.")):null,
+  h("table",{},h("tbody",{},...[[fmt(L.perMinute||30)+" / minute","per API key"],[lim?fmt(lim)+" / day":"no daily cap","shared across all users"],[fmt(L.maxOutputTokens||1024)+" tokens","output per request"],[fmt(L.maxKeys||10)+" keys","active per account"],["No streaming","stream: true returns 400"]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b))))))}
+
 /* ---------- landing ---------- */
 const CASES=[["Write a config","Turn a plain-English request into a valid Flisk service.json.",1],["Repair a rejected config","Give it the validator error and the broken file, get the smallest fix back.",1],["Route support tickets","Label billing, bug or how-to and pick the queue.",0],["Extract fields to JSON","Invoices and emails into a fixed schema.",0],["Triage log lines","Noise, known issue, or page someone.",0],["Make test data","Rows and fixtures that match a schema.",0]];
 const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","Large hosted",57,18],["flisk-wolf, prompted 7B","Small, long prompt",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
@@ -99,14 +162,15 @@ function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
   h("nav",{class:"site-nav"},h("a",{class:"brand",href:"/",html:SVG.logo+"<span>Flisk Inference</span>"}),h("div",{class:"nav-r"},
-   h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model"},"Results"),
+   h("a",{class:"btn sm",href:"?section=usecases"},"Use cases"),
+   h("a",{class:"btn sm",href:"?section=integrations"},"Integrations"),
    h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),
    h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
     h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
     h("p",{class:"lead"},"An open model with Flisk's rules that writes and repairs Flisk config files, behind an OpenAI-compatible API. Sign in with GitHub and get a key in a minute."),
-    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"See the test results")),
+    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"?section=usecases"},"What is it for?")),
     h("ul",{class:"proof"},h("li",{},"OpenAI-compatible"),h("li",{},"Free beta"),h("li",{},"30 requests a minute"))),
    h("div",{class:"demo card"},
     h("div",{class:"demo-label"},"You ask"),
@@ -114,7 +178,7 @@ function landing(){
     h("div",{class:"demo-label"},"You get"),
     codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}'),
     h("div",{class:"demo-note"},"A real answer from the model. It passes the Flisk validator."))),
-  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Point any OpenAI client at this address. Create a key first."),samples()),
+  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Vercel AI SDK, LangChain, LiteLLM, the OpenAI SDKs, or a CI step: point any OpenAI-compatible client at this address. Create a key first."),integrations()),
   h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
    h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
@@ -125,7 +189,7 @@ function landing(){
   h("footer",{},"Beta: free, 30 requests a minute per key, 1,024 output tokens per request, and a shared daily limit. The model is Qwen2.5-Coder 32B with Flisk's rules on Cloudflare Workers AI. Keys and usage may be reset while it is in beta."))}
 
 /* ---------- console ---------- */
-const NAV=[["overview","Overview","home"],["keys","API keys","key"],["usage","Usage","chart"],["docs","Docs","book"]];
+const NAV=[["overview","Overview","home"],["usecases","Use cases","bulb"],["keys","API keys","key"],["usage","Usage","chart"],["integrations","Integrations","plug"],["docs","Docs","book"]];
 function shell(section,title,body){
  return h("div",{class:"app"},
   h("aside",{},h("a",{class:"brand",href:"/",html:SVG.logo+"<span>Inference</span>"}),
@@ -151,6 +215,7 @@ async function overview(){
    h("div",{class:"card stat"},h("small",{},"Requests"),h("b",{},fmt(t.requests)),h("span",{},"all time")),
    h("div",{class:"card stat"},h("small",{},"Tokens"),h("b",{},fmt(t.input+t.output)),h("span",{},fmt(t.input)+" in · "+fmt(t.output)+" out")),
    h("div",{class:"card stat"},h("small",{},"Cost"),h("b",{},"Free"),h("span",{},"beta, no billing"))),
+  limitsCard(u.today),
   h("div",{class:"card",style:"margin-bottom:18px"},chart),
   first?h("div",{class:"card newkey"},h("b",{},"Make your first request"),h("p",{style:"color:var(--mut);margin:4px 0 0"},"Create a key, then paste this into a terminal."),h("div",{style:"margin-top:10px"},h("a",{class:"btn primary",href:"?section=keys"},"Create an API key"))):null)}
 async function keysView(){
@@ -170,12 +235,12 @@ async function usageView(){
 function docsView(){return h("div",{},h("p",{style:"color:var(--mut);max-width:42em"},"An OpenAI-compatible endpoint. Point any OpenAI SDK at the base URL below and use your key."),
  h("div",{class:"card",style:"margin:14px 0"},h("small",{class:"mono",style:"color:var(--faint)"},"BASE URL"),h("div",{style:"margin-top:6px"},codeBlock(location.origin+"/v1"))),samples(),
  h("h3",{style:"margin:26px 0 10px;font-size:17px"},"Limits and errors"),h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[["30 / minute","Per key. Over it returns 429."],["Daily limit","Shared by everyone in the beta. Over it returns 429 until 00:00 UTC."],["1,024 tokens","Maximum output per request."],["No streaming","stream: true returns 400."],["One model","flisk-wolf. Another model name returns 400."],["401","Missing or revoked key."]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b)))))))}
-const VIEWS={overview:["Overview",overview],keys:["API keys",keysView],usage:["Usage",usageView],docs:["Docs",async()=>docsView()]};
+const VIEWS={overview:["Overview",overview],usecases:["Use cases",async()=>useCasesView()],integrations:["Integrations",async()=>integrationsView()],keys:["API keys",keysView],usage:["Usage",usageView],docs:["Docs",async()=>docsView()]};
 async function route(){
  const q=new URLSearchParams(location.search).get("section");const root=$("#root");root.textContent="";
  if(!q){root.append(landing());return}
  const section=VIEWS[q]?q:"overview";
- if(!me&&section!=="docs"){root.append(shell(section,"Sign in",loginView()));return}
+ if(!me&&!["docs","usecases","integrations"].includes(section)){root.append(shell(section,"Sign in",loginView()));return}
  const [title,view]=VIEWS[section];root.append(shell(section,title,h("div",{class:"empty"},"Loading…")));
  try{const body=await view();$(".content",root).replaceChildren(...(cfg.beta?[betaNote()]:[]),body)}catch(e){$(".content",root).replaceChildren(h("div",{class:"card empty"},h("b",{},"Something went wrong"),e.message))}}
 (async()=>{theme();
