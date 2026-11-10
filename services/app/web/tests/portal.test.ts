@@ -44,8 +44,13 @@ beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "portal-")); });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("sign-in", () => {
-  it("refuses the console API without a session", async () => {
-    expect((await make().fetch(req("/api/me"))).status).toBe(401);
+  it("refuses the console API without a session, but answers who-am-I with null so browsers log no error", async () => {
+    const p = make();
+    const me = await p.fetch(req("/api/me"));
+    expect(me.status).toBe(200);
+    expect(await me.json()).toBeNull();
+    expect((await p.fetch(req("/api/keys"))).status).toBe(401);
+    expect((await p.fetch(req("/api/usage"))).status).toBe(401);
   });
   it("signs in through the local gh login and returns the GitHub profile", async () => {
     const p = make();
@@ -58,8 +63,10 @@ describe("sign-in", () => {
   it("rejects a forged or tampered session cookie", async () => {
     const p = make();
     const cookie = await login(p);
-    expect((await p.fetch(req("/api/me", { cookie: `${cookie}x` }))).status).toBe(401);
-    expect((await p.fetch(req("/api/me", { cookie: "fi_session=e30.abc" }))).status).toBe(401);
+    for (const bad of [`${cookie}x`, "fi_session=e30.abc"]) {
+      expect(await (await p.fetch(req("/api/me", { cookie: bad }))).json()).toBeNull();
+      expect((await p.fetch(req("/api/keys", { cookie: bad }))).status).toBe(401);
+    }
   });
   it("starts the GitHub flow only when OAuth is configured, and rejects an unknown state", async () => {
     expect((await make().fetch(req("/auth/github"))).status).toBe(501);
@@ -202,6 +209,35 @@ describe("bootstrap key", () => {
   });
 });
 
+describe("pages for people", () => {
+  it("shows a 404 page to a browser and JSON to a program", async () => {
+    const p = make();
+    const page = await p.fetch(req("/nope", { headers: { accept: "text/html,application/xhtml+xml" } }));
+    expect(page.status).toBe(404);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(await page.text()).toContain("Page not found");
+    const api = await p.fetch(req("/nope"));
+    expect(api.status).toBe(404);
+    expect(await api.json()).toEqual({ error: "not found" });
+  });
+  it("escapes the address it echoes on the 404 page", async () => {
+    const page = await make().fetch(req("/%3Cscript%3E", { headers: { accept: "text/html" } }));
+    expect(await page.text()).not.toContain("<script>");
+  });
+  it("turns an expired or replayed sign-in into a page with a way to try again", async () => {
+    const p = make({ github: { clientId: "id", clientSecret: "s" } });
+    const res = await p.fetch(req("/auth/callback?state=x&code=y"));
+    expect(res.status).toBe(400);
+    const html = await res.text();
+    expect(html).toContain("Sign-in did not finish");
+    expect(html).toContain('href="/auth/github"');
+  });
+  it("serves the share preview image", async () => {
+    const p = make({ asset: (path) => new Response(path) });
+    expect(await (await p.fetch(req("/og.png"))).text()).toBe("/og.png");
+  });
+});
+
 describe("beta limits", () => {
   it("stops model calls at the shared daily limit across all keys", async () => {
     const p = make({ dailyLimit: 2 });
@@ -296,7 +332,7 @@ describe("site icons", () => {
   it("serves the icons from public/ and links them in <head>", async () => {
     const pub = join(import.meta.dir, "..", "public");
     const portal = make({ asset: (path) => new Response(Bun.file(join(pub, path))) });
-    for (const path of ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png"]) {
+    for (const path of ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]) {
       const res = await portal.fetch(req(path));
       expect(res.status).toBe(200);
       expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array(readFileSync(join(pub, path))));
@@ -306,7 +342,9 @@ describe("site icons", () => {
     expect(html).toContain('<link rel="icon" href="/favicon.ico" sizes="32x32">');
     expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">');
     expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
-    expect(html).toContain('<img src=\\"/icon.svg\\" alt=\\"\\" width=\\"26\\" height=\\"26\\">');
+    // The logo sits next to its own name, so it is decorative: empty alt and hidden from screen readers.
+    expect(html).toContain('<img src=\\"/icon.svg\\" alt=\\"\\" aria-hidden=\\"true\\" width=\\"26\\" height=\\"26\\">');
+    expect(html).toContain('<meta property="og:image" content="https://inference.flisk.si/og.png">');
     expect(html).not.toContain("SVG.logo");
   });
   it("answers 404 for the icons when no asset handler is given", async () => {
