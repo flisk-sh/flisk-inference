@@ -1,15 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#eeece5"/>
-  <g transform="translate(96 96) scale(2)">
-    <rect width="64" height="64" rx="14" fill="#0f1426"/><rect x="20" y="20" width="24" height="24" rx="4" fill="none" stroke="#fbfaf7" stroke-width="4"/><rect x="28" y="28" width="8" height="8" rx="1.5" fill="#6ff0ae"/><path d="M28 11v9M36 11v9M28 44v9M36 44v9M11 28h9M11 36h9M44 28h9M44 36h9" fill="none" stroke="#fbfaf7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Flisk Inference: Plain English in, valid service.json out."><title>Flisk Inference</title>
+  <!-- Share card, built to the Flisk card spec. Render: rsvg-convert -w 1200 -h 630 (or the repo's own icons script). -->
+  <defs>
+    <radialGradient id="glow" cx="0.1" cy="0.08" r="0.75"><stop offset="0" stop-color="#0d3a22"/><stop offset="1" stop-color="#0a0a0e"/></radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.04"/></pattern>
+    <linearGradient id="rule" x1="0" x2="1"><stop offset="0" stop-color="#22c55e" stop-opacity="0"/><stop offset="0.25" stop-color="#22c55e"/><stop offset="1" stop-color="#22c55e" stop-opacity="0.15"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0b0b10"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <g transform="translate(64 64) scale(0.875)"><rect width="64" height="64" rx="14" fill="#0f1426"/><rect x="20" y="20" width="24" height="24" rx="4" fill="none" stroke="#fbfaf7" stroke-width="4"/><rect x="28" y="28" width="8" height="8" rx="1.5" fill="#6ff0ae"/><path d="M28 11v9M36 11v9M28 44v9M36 44v9M11 28h9M11 36h9M44 28h9M44 36h9" fill="none" stroke="#fbfaf7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="140" y="99" font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="19" font-weight="700" letter-spacing="4.6" fill="#6ee7a0">FLISK INFERENCE / FREE BETA</text>
+  <g font-family="Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="56" font-weight="800" fill="#ffffff" letter-spacing="-1.2">
+    <text x="64" y="232">Plain English in,</text>
+    <text x="64" y="296">valid service.json</text>
+    <text x="64" y="360">out.</text>
   </g>
-  <text x="252" y="180" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="58" fill="#121212">Flisk Inference</text>
-  <text x="96" y="345" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="62" fill="#121212">Plain English in,</text>
-  <text x="96" y="422" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="62" fill="#121212">valid service.json out</text>
-  <text x="96" y="530" font-family="Menlo, monospace" font-size="30" fill="#5f5e63">inference.flisk.si, free beta</text>
-  <g transform="translate(880 96)">
-    <rect width="224" height="164" rx="22" fill="#0f1426"/>
-    <text x="112" y="88" text-anchor="middle" font-family="Menlo, monospace" font-weight="700" font-size="50" fill="#6ff0ae">/v1</text>
-    <text x="112" y="126" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="21" fill="#a9adbd">OpenAI-compatible</text>
+  <g font-family="Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="24" fill="#9a9aa6">
+    <text x="64" y="414">Write a service.json from one sentence,</text>
+    <text x="64" y="446">or send a rejected one and get the fix.</text>
+  </g>
+  <g font-family="Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f1f3f5" text-anchor="middle">
+    <rect x="64" y="476" width="224" height="44" rx="22" fill="#15161d" stroke="#34374a"/><text x="176" y="505">OpenAI-compatible</text>
+    <rect x="300" y="476" width="139" height="44" rx="22" fill="#15161d" stroke="#34374a"/><text x="369.5" y="505">Free beta</text>
+    <rect x="451" y="476" width="150" height="44" rx="22" fill="#15161d" stroke="#34374a"/><text x="526" y="505">Open model</text>
+  </g>
+  <rect x="64" y="546" width="520" height="2" fill="url(#rule)"/>
+  <text x="64" y="592" font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="28" fill="#e9ecef">inference.flisk.si</text>
+  <g transform="translate(624 64)">
+    <rect width="620" height="490" fill="#111117" stroke="#ffffff" stroke-opacity="0.18"/>
+    <clipPath id="hatch"><rect x="1" y="1" width="618" height="54"/></clipPath>
+    <g clip-path="url(#hatch)" stroke="#22c55e" stroke-width="2.2"><path d="M-60 56L0 -4"/><path d="M-49 56L11 -4"/><path d="M-38 56L22 -4"/><path d="M-27 56L33 -4"/><path d="M-16 56L44 -4"/><path d="M-5 56L55 -4"/><path d="M6 56L66 -4"/><path d="M17 56L77 -4"/><path d="M28 56L88 -4"/><path d="M39 56L99 -4"/><path d="M50 56L110 -4"/><path d="M61 56L121 -4"/><path d="M72 56L132 -4"/><path d="M83 56L143 -4"/><path d="M94 56L154 -4"/><path d="M105 56L165 -4"/><path d="M116 56L176 -4"/><path d="M127 56L187 -4"/><path d="M138 56L198 -4"/><path d="M149 56L209 -4"/><path d="M160 56L220 -4"/><path d="M171 56L231 -4"/><path d="M182 56L242 -4"/><path d="M193 56L253 -4"/><path d="M204 56L264 -4"/><path d="M215 56L275 -4"/><path d="M226 56L286 -4"/><path d="M237 56L297 -4"/><path d="M248 56L308 -4"/><path d="M259 56L319 -4"/><path d="M270 56L330 -4"/><path d="M281 56L341 -4"/><path d="M292 56L352 -4"/><path d="M303 56L363 -4"/><path d="M314 56L374 -4"/><path d="M325 56L385 -4"/><path d="M336 56L396 -4"/><path d="M347 56L407 -4"/><path d="M358 56L418 -4"/><path d="M369 56L429 -4"/><path d="M380 56L440 -4"/><path d="M391 56L451 -4"/><path d="M402 56L462 -4"/><path d="M413 56L473 -4"/><path d="M424 56L484 -4"/><path d="M435 56L495 -4"/><path d="M446 56L506 -4"/><path d="M457 56L517 -4"/><path d="M468 56L528 -4"/><path d="M479 56L539 -4"/><path d="M490 56L550 -4"/><path d="M501 56L561 -4"/><path d="M512 56L572 -4"/><path d="M523 56L583 -4"/><path d="M534 56L594 -4"/><path d="M545 56L605 -4"/><path d="M556 56L616 -4"/><path d="M567 56L627 -4"/><path d="M578 56L638 -4"/><path d="M589 56L649 -4"/><path d="M600 56L660 -4"/><path d="M611 56L671 -4"/><path d="M622 56L682 -4"/><path d="M633 56L693 -4"/><path d="M644 56L704 -4"/><path d="M655 56L715 -4"/><path d="M666 56L726 -4"/><path d="M677 56L737 -4"/><path d="M688 56L748 -4"/><path d="M699 56L759 -4"/></g>
+    <rect x="0" y="55" width="620" height="1" fill="#ffffff" fill-opacity="0.18"/>
+    <g font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="13" font-weight="600" letter-spacing="1.6" fill="#ececf1" fill-opacity="0.5">
+      <text x="28" y="94">YOU ASK</text><text x="28" y="214">YOU GET</text>
+    </g>
+    <rect x="28" y="108" width="564" height="82" fill="#17171f" stroke="#ffffff" stroke-opacity="0.18"/>
+    <g font-family="Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="19" fill="#ececf1"><text x="46" y="142">Write a Flisk service.json for a worker</text><text x="46" y="170">called emailer in the shop stack.</text></g>
+    <rect x="28" y="228" width="564" height="208" fill="#0d0d13" stroke="#ffffff" stroke-opacity="0.18"/>
+    <rect x="44" y="242" width="8" height="8" fill="#ffffff" fill-opacity="0.18"/><rect x="58" y="242" width="8" height="8" fill="#ffffff" fill-opacity="0.18"/><rect x="72" y="242" width="8" height="8" fill="#ffffff" fill-opacity="0.18"/>
+    <text x="556" y="251" font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="12" font-weight="600" letter-spacing="1.2" fill="#ececf1" fill-opacity="0.5" text-anchor="end">SERVICE.JSON</text>
+    <rect x="28" y="262" width="564" height="1" fill="#ffffff" fill-opacity="0.08"/>
+    <text xml:space="preserve" font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="18" fill="#ececf1"><tspan x="46" y="290">{</tspan><tspan x="68" dy="27"><tspan fill="#c4b5fd">"schemaVersion"</tspan><tspan fill="#ececf1">: </tspan><tspan fill="#fbbf24">1</tspan><tspan fill="#ececf1">,</tspan></tspan><tspan x="68" dy="27"><tspan fill="#c4b5fd">"appName"</tspan><tspan fill="#ececf1">: </tspan><tspan fill="#6ee7a0">"emailer"</tspan><tspan fill="#ececf1">,</tspan></tspan><tspan x="68" dy="27"><tspan fill="#c4b5fd">"appType"</tspan><tspan fill="#ececf1">: </tspan><tspan fill="#6ee7a0">"worker"</tspan><tspan fill="#ececf1">,</tspan></tspan><tspan x="68" dy="27"><tspan fill="#c4b5fd">"stack"</tspan><tspan fill="#ececf1">: </tspan><tspan fill="#6ee7a0">"shop"</tspan><tspan fill="#ececf1"></tspan></tspan><tspan x="46" dy="27">}</tspan></text>
+    <rect x="28" y="458" width="8" height="8" fill="#22c55e"/>
+    <text x="46" y="466" font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="14" fill="#ececf1" fill-opacity="0.68">A real answer from the model.</text>
   </g>
 </svg>
