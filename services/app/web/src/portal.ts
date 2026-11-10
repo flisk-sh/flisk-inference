@@ -18,6 +18,7 @@ export interface PortalOptions {
   github?: { clientId: string; clientSecret: string };
   devLogin?: () => Promise<GithubUser>; // local sign-in as the machine's gh user; never set in production
   indexHtml: () => string | Promise<string>; // the landing page and console
+  asset?: (path: string) => Response | Promise<Response>; // the icons in public/ (ICONS); missing: 404
   maxBody?: number;                   // bytes
   ratePerMinute?: number;             // per API key
   maxActiveKeys?: number;             // per user
@@ -35,9 +36,13 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const SESSION_DAYS = 7;
 
+// The site icons in public/: the canonical mark from flisk-sh/flisk-emoji (apps/flisk-inference.svg) and PNGs made from it.
+export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png"];
+const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
+
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 function deniedPage(name: string, login: string): string {
-  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)}</title><body style="font:16px/1.5 system-ui;max-width:30rem;margin:15vh auto;padding:0 1rem;background:#08080c;color:#ececf1"><h1 style="font-size:1.4rem">Private preview</h1><p><b>@${esc(login)}</b> is not on the list yet. ${esc(name)} is open to a few people while it is tested.</p><p><a style="color:#6ee7a0" href="/">Back to the site</a></p></body>`;
+  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)}</title>${ICON_LINKS}<body style="font:16px/1.5 system-ui;max-width:30rem;margin:15vh auto;padding:0 1rem;background:#08080c;color:#ececf1"><h1 style="font-size:1.4rem">Private preview</h1><p><b>@${esc(login)}</b> is not on the list yet. ${esc(name)} is open to a few people while it is tested.</p><p><a style="color:#6ee7a0" href="/">Back to the site</a></p></body>`;
 }
 
 export function createPortal(opts: PortalOptions) {
@@ -107,6 +112,7 @@ export function createPortal(opts: PortalOptions) {
     const path = url.pathname;
 
     if (req.method === "GET" && path === "/health") return json(200, { status: "ok" });
+    if (req.method === "GET" && opts.asset && ICONS.includes(path)) return opts.asset(path);
     if (req.method === "GET" && (path === "/" || path === "/index.html"))
       return new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (req.method === "GET" && path === "/api/status") {

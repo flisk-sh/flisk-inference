@@ -276,7 +276,9 @@ describe("status, models and daily usage", () => {
     const res = await p.fetch(req(`/auth/callback?state=${state}&code=x`));
     expect(res.status).toBe(403);
     expect(res.headers.get("content-type")).toContain("text/html");
-    expect(await res.text()).toContain("Private preview");
+    const page = await res.text();
+    expect(page).toContain("Private preview");
+    expect(page).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">');
   });
 });
 
@@ -287,5 +289,27 @@ describe("pages", () => {
     const home = await p.fetch(req("/"));
     expect(home.headers.get("content-type")).toContain("text/html");
     expect(await home.text()).toContain("Sign in with GitHub");
+  });
+});
+
+describe("site icons", () => {
+  it("serves the icons from public/ and links them in <head>", async () => {
+    const pub = join(import.meta.dir, "..", "public");
+    const portal = make({ asset: (path) => new Response(Bun.file(join(pub, path))) });
+    for (const path of ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png"]) {
+      const res = await portal.fetch(req(path));
+      expect(res.status).toBe(200);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array(readFileSync(join(pub, path))));
+    }
+    expect(readFileSync(join(pub, "icon.svg"), "utf-8")).toContain('aria-label="Flisk Inference"');
+    const html = await (await portal.fetch(req("/"))).text();
+    expect(html).toContain('<link rel="icon" href="/favicon.ico" sizes="32x32">');
+    expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">');
+    expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+    expect(html).toContain('<img src=\\"/icon.svg\\" alt=\\"\\" width=\\"26\\" height=\\"26\\">');
+    expect(html).not.toContain("SVG.logo");
+  });
+  it("answers 404 for the icons when no asset handler is given", async () => {
+    expect((await make().fetch(req("/icon.svg"))).status).toBe(404);
   });
 });
