@@ -125,6 +125,11 @@ export function createPortal(opts: PortalOptions) {
     const read = req.method === "GET" || req.method === "HEAD";
     const bodyFor = (res: Response) => (req.method === "HEAD" ? new Response(null, { status: res.status, headers: res.headers }) : res);
     if (read && opts.asset && ICONS.includes(path)) return bodyFor(await opts.asset(path));
+    // Search engines: crawl the page, keep off the API and sign-in routes, and find the sitemap.
+    if (read && path === "/robots.txt")
+      return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8" } }));
+    if (read && path === "/sitemap.xml")
+      return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8" } }));
     if (read && (path === "/" || path === "/index.html"))
       return bodyFor(new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } }));
     if (req.method === "GET" && path === "/api/status") {
