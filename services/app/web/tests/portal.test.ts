@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileStore } from "../src/file-store";
 import { createPortal, type GithubUser } from "../src/portal";
 
 const BASE = "http://portal.test";
@@ -14,8 +15,8 @@ function make(extra: Partial<Parameters<typeof createPortal>[0]> = {}) {
   return createPortal({
     publicUrl: BASE,
     upstreamUrl: "http://upstream.test",
-    dataDir: dir,
-    publicDir: join(import.meta.dir, "..", "public"),
+    store: fileStore(dir),
+    indexHtml: () => readFileSync(join(import.meta.dir, "..", "public", "index.html"), "utf-8"),
     devLogin: async () => ME,
     fetchImpl: (async (input: RequestInfo | URL, init?: RequestInit) => {
       upstreamCalls.push({ url: String(input), body: init?.body as string | undefined });
@@ -194,10 +195,36 @@ describe("bootstrap key", () => {
     expect(readFileSync(join(dir, "db.json"), "utf-8")).not.toContain("fi-preview-secret-1234");
   });
   it("does not add the key twice across restarts", async () => {
-    make({ bootstrapKey: "fi-once" });
-    make({ bootstrapKey: "fi-once" });
+    await make({ bootstrapKey: "fi-once" }).fetch(req("/health"));
+    await make({ bootstrapKey: "fi-once" }).fetch(req("/health"));
     const db = JSON.parse(readFileSync(join(dir, "db.json"), "utf-8")) as { keys: unknown[] };
     expect(db.keys).toHaveLength(1);
+  });
+});
+
+describe("beta limits", () => {
+  it("stops model calls at the shared daily limit across all keys", async () => {
+    const p = make({ dailyLimit: 2 });
+    const cookie = await login(p);
+    const a = await newKey(p, cookie, "a"), b = await newKey(p, cookie, "b");
+    expect((await p.fetch(chat(a.key))).status).toBe(200);
+    expect((await p.fetch(chat(b.key))).status).toBe(200);
+    const over = await p.fetch(chat(a.key));
+    expect(over.status).toBe(429);
+    expect(((await over.json()) as { error: { message: string } }).error.message).toContain("daily limit");
+    expect(upstreamCalls).toHaveLength(2);
+  });
+  it("says beta and the daily limit in /api/config", async () => {
+    const cfg = (await (await make({ beta: true, dailyLimit: 300 }).fetch(req("/api/config"))).json()) as { beta: boolean; dailyLimit: number };
+    expect(cfg).toMatchObject({ beta: true, dailyLimit: 300 });
+  });
+  it("calls a custom upstream function instead of HTTP when one is given", async () => {
+    const seen: string[] = [];
+    const p = make({ upstream: async (path) => { seen.push(path); return Response.json({ ok: true }); } });
+    const { key } = await newKey(p, await login(p));
+    expect((await p.fetch(chat(key))).status).toBe(200);
+    expect(seen).toEqual(["/v1/chat/completions"]);
+    expect(upstreamCalls).toHaveLength(0);
   });
 });
 

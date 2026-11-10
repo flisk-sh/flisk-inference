@@ -1,19 +1,22 @@
 // The portal: GitHub sign-in, API keys, and a metered proxy to an upstream HTTP API. No dependencies.
 // createPortal() returns a fetch handler over standard Request/Response, so tests drive it without a socket.
+// Storage, the model call and the page are passed in, so the same code runs under Bun (files + Ollama, src/index.ts)
+// and on Cloudflare (D1 + Workers AI, src/worker.ts).
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 
 export interface GithubUser { id: number | string; login: string; name?: string | null; avatar_url?: string }
 export interface PortalOptions {
   name?: string;                      // product name shown in the console
   publicUrl: string;                  // the address people use, no trailing slash
-  upstreamUrl: string;                // what /v1/* is forwarded to
-  dataDir: string;                    // users, hashed keys, usage, cookie secret
+  upstreamUrl?: string;               // what /v1/* is forwarded to, unless `upstream` is set
+  upstream?: (path: string, init: RequestInit) => Promise<Response>; // replaces the HTTP forward (Workers AI)
+  store: Store;                       // users, hashed keys, usage, cookie secret
+  dailyLimit?: number;                // model requests per UTC day across all keys; missing: no cap
+  beta?: boolean;                     // the console says the service is in beta
   allowedModels?: string[];           // empty or missing: any model
   github?: { clientId: string; clientSecret: string };
   devLogin?: () => Promise<GithubUser>; // local sign-in as the machine's gh user; never set in production
-  publicDir: string;                  // folder holding index.html
+  indexHtml: () => string | Promise<string>; // the landing page and console
   maxBody?: number;                   // bytes
   ratePerMinute?: number;             // per API key
   maxActiveKeys?: number;             // per user
@@ -24,7 +27,8 @@ export interface PortalOptions {
 interface User { id: string; login: string; name: string; avatar: string; created: string }
 interface Day { requests: number; input: number; output: number }
 interface Key { daily?: Record<string, Day>; id: string; userId: string; name: string; hash: string; prefix: string; last4: string; created: string; lastUsed: string | null; requests: number; input: number; output: number; revoked: boolean }
-interface Db { users: Record<string, User>; keys: Key[] }
+export interface Db { users: Record<string, User>; keys: Key[]; total?: Record<string, number> }
+export interface Store { load(): Promise<Db>; save(db: Db): Promise<void>; secret(): Promise<string> }
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -41,25 +45,22 @@ export function createPortal(opts: PortalOptions) {
   const maxActiveKeys = opts.maxActiveKeys ?? 10;
   const doFetch = opts.fetchImpl ?? fetch;
   const secure = opts.publicUrl.startsWith("https");
-
-  mkdirSync(opts.dataDir, { recursive: true });
-  const dbFile = join(opts.dataDir, "db.json");
-  const secretFile = join(opts.dataDir, "secret");
-  if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString("hex"), { mode: 0o600 });
-  const secret = readFileSync(secretFile, "utf-8").trim();
-  const db: Db = existsSync(dbFile) ? JSON.parse(readFileSync(dbFile, "utf-8")) : { users: {}, keys: [] };
-  const save = () => { writeFileSync(`${dbFile}.tmp`, JSON.stringify(db, null, 2)); renameSync(`${dbFile}.tmp`, dbFile); };
+  const upstream = opts.upstream ?? ((path: string, init: RequestInit) => doFetch(`${opts.upstreamUrl}${path}`, init));
+  let secret = "";
   const sign = (p: string) => createHmac("sha256", secret).update(p).digest("base64url");
 
   // A preview run (a CI runner with a public link) has no sign-in: one key comes from a secret instead. Only its hash is stored.
-  if (opts.bootstrapKey) {
+  const ready = (async () => {
+    secret = await opts.store.secret();
+    if (!opts.bootstrapKey) return;
+    const db = await opts.store.load();
     const hash = sha(opts.bootstrapKey);
     if (!db.keys.some((k) => k.hash === hash)) {
       db.users.bootstrap ??= { id: "bootstrap", login: "preview", name: "Preview key", avatar: "", created: new Date().toISOString() };
       db.keys.push({ id: randomBytes(6).toString("hex"), userId: "bootstrap", name: "preview", hash, prefix: opts.bootstrapKey.slice(0, 5), last4: opts.bootstrapKey.slice(-4), created: new Date().toISOString(), lastUsed: null, requests: 0, input: 0, output: 0, revoked: false });
-      save();
+      await opts.store.save(db);
     }
-  }
+  })();
 
   const states = new Map<string, number>(); // OAuth state -> expiry
   const rate = new Map<string, number[]>();
@@ -72,7 +73,7 @@ export function createPortal(opts: PortalOptions) {
     const p = b64({ uid, exp: Date.now() + SESSION_DAYS * 864e5 });
     return `fi_session=${p}.${sign(p)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure ? "; Secure" : ""}`;
   };
-  function sessionUser(req: Request): User | null {
+  function sessionUser(req: Request, db: Db): User | null {
     const m = /(?:^|;\s*)fi_session=([^;]+)/.exec(req.headers.get("cookie") ?? "");
     if (!m) return null;
     const [p, sig] = m[1].split(".");
@@ -84,10 +85,11 @@ export function createPortal(opts: PortalOptions) {
       return s.exp > Date.now() ? (db.users[s.uid] ?? null) : null;
     } catch { return null; }
   }
-  function upsertUser(gh: GithubUser): string {
+  async function upsertUser(gh: GithubUser): Promise<string> {
+    const db = await opts.store.load();
     const id = String(gh.id);
     db.users[id] = { id, login: gh.login, name: gh.name ?? gh.login, avatar: gh.avatar_url ?? "", created: db.users[id]?.created ?? new Date().toISOString() };
-    save();
+    await opts.store.save(db);
     return id;
   }
   async function readJson(req: Request): Promise<Record<string, unknown>> {
@@ -99,21 +101,22 @@ export function createPortal(opts: PortalOptions) {
   const sameOrigin = (req: Request) => !req.headers.get("origin") || req.headers.get("origin") === opts.publicUrl;
 
   async function handle(req: Request): Promise<Response> {
+    await ready;
     const url = new URL(req.url);
     const path = url.pathname;
 
     if (req.method === "GET" && path === "/health") return json(200, { status: "ok" });
     if (req.method === "GET" && (path === "/" || path === "/index.html"))
-      return new Response(readFileSync(join(opts.publicDir, "index.html")), { headers: { "content-type": "text/html; charset=utf-8" } });
+      return new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (req.method === "GET" && path === "/api/status") {
       if (!statusCache || Date.now() - statusCache.at > 15_000) {
         let ok = false;
-        try { ok = (await doFetch(`${opts.upstreamUrl}/v1/models`, { signal: AbortSignal.timeout(2500) })).ok; } catch { /* unreachable */ }
+        try { ok = (await upstream("/v1/models", { signal: AbortSignal.timeout(2500) })).ok; } catch { /* unreachable */ }
         statusCache = { at: Date.now(), ok };
       }
       return json(200, { ok: statusCache.ok, models: opts.allowedModels ?? [], checkedAt: new Date(statusCache.at).toISOString() });
     }
-    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [] });
+    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [], beta: Boolean(opts.beta), dailyLimit: opts.dailyLimit ?? null });
 
     // ---- sign-in
     if (path === "/auth/github") {
@@ -134,17 +137,19 @@ export function createPortal(opts: PortalOptions) {
       if (!gh.id || !gh.login) return json(400, { error: "could not read the GitHub profile" });
       if (opts.allowedLogins?.length && !opts.allowedLogins.some((l) => l.toLowerCase() === String(gh.login).toLowerCase()))
         return new Response(deniedPage(opts.name ?? "Portal", String(gh.login)), { status: 403, headers: { "content-type": "text/html; charset=utf-8" } });
-      return redirect("/?section=keys", { "set-cookie": sessionCookie(upsertUser(gh)) });
+      return redirect("/?section=keys", { "set-cookie": sessionCookie(await upsertUser(gh)) });
     }
     if (path === "/auth/dev") {
       if (!opts.devLogin) return json(403, { error: "dev login is off" });
-      return redirect("/?section=keys", { "set-cookie": sessionCookie(upsertUser(await opts.devLogin())) });
+      return redirect("/?section=keys", { "set-cookie": sessionCookie(await upsertUser(await opts.devLogin())) });
     }
     if (path === "/auth/logout") return redirect("/", { "set-cookie": "fi_session=; Max-Age=0; Path=/" });
 
     // ---- console API (session cookie)
     if (path.startsWith("/api/")) {
-      const user = sessionUser(req);
+      const db = await opts.store.load();
+      const save = () => opts.store.save(db);
+      const user = sessionUser(req, db);
       if (!user) return json(401, { error: "not signed in" });
       if (req.method !== "GET" && !sameOrigin(req)) return json(403, { error: "cross-origin request refused" });
       const mine = db.keys.filter((k) => k.userId === user.id);
@@ -157,7 +162,7 @@ export function createPortal(opts: PortalOptions) {
         const key = `fi-${randomBytes(24).toString("base64url")}`;
         const rec: Key = { id: randomBytes(6).toString("hex"), userId: user.id, name: String(body.name || "default").slice(0, 40), hash: sha(key), prefix: key.slice(0, 5), last4: key.slice(-4), created: new Date().toISOString(), lastUsed: null, requests: 0, input: 0, output: 0, revoked: false };
         db.keys.push(rec);
-        save();
+        await save();
         return json(201, { id: rec.id, name: rec.name, key }); // the only time the full key is returned
       }
       const del = /^\/api\/keys\/([0-9a-f]+)$/.exec(path);
@@ -165,7 +170,7 @@ export function createPortal(opts: PortalOptions) {
         const k = mine.find((x) => x.id === del[1]);
         if (!k) return json(404, { error: "no such key" });
         k.revoked = true;
-        save();
+        await save();
         return json(200, { ok: true });
       }
       if (path === "/api/usage") {
@@ -184,6 +189,7 @@ export function createPortal(opts: PortalOptions) {
 
     // ---- /v1/*: API-key auth, metered, forwarded to the upstream
     if (path.startsWith("/v1/")) {
+      const db = await opts.store.load();
       const m = /^Bearer (.+)$/.exec(req.headers.get("authorization") ?? "");
       const key = m ? db.keys.find((k) => !k.revoked && k.hash === sha(m[1])) : undefined;
       if (!key) return json(401, { error: { message: "invalid or missing API key", type: "invalid_request_error" } });
@@ -194,6 +200,9 @@ export function createPortal(opts: PortalOptions) {
       const recent = (rate.get(key.id) ?? []).filter((t) => now - t < 60_000);
       if (recent.length >= ratePerMinute) return json(429, { error: { message: `rate limit: ${ratePerMinute} requests per minute` } });
       rate.set(key.id, [...recent, now]);
+      const today = new Date().toISOString().slice(0, 10);
+      if (opts.dailyLimit && (db.total?.[today] ?? 0) >= opts.dailyLimit)
+        return json(429, { error: { message: `the free beta's shared daily limit of ${opts.dailyLimit} requests is used up; it resets at 00:00 UTC` } });
 
       let body: string | undefined;
       if (req.method === "POST") {
@@ -202,21 +211,26 @@ export function createPortal(opts: PortalOptions) {
         if (opts.allowedModels?.length && !opts.allowedModels.includes(String(parsed.model))) return json(400, { error: { message: `model must be one of: ${opts.allowedModels.join(", ")}` } });
         body = JSON.stringify(parsed);
       }
-      const up = await doFetch(`${opts.upstreamUrl}${path}`, { method: req.method, headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(120_000) });
+      const up = await upstream(path, { method: req.method, headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(120_000) });
       const text = await up.text();
       let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
       try { usage = (JSON.parse(text) as { usage?: typeof usage }).usage; } catch { /* not JSON: count the request only */ }
       if (up.ok) {
-        key.requests++;
-        key.input += usage?.prompt_tokens ?? 0;
-        key.output += usage?.completion_tokens ?? 0;
-        const today = new Date().toISOString().slice(0, 10);
-        const day = ((key.daily ??= {})[today] ??= { requests: 0, input: 0, output: 0 });
-        day.requests++;
-        day.input += usage?.prompt_tokens ?? 0;
-        day.output += usage?.completion_tokens ?? 0;
-        key.lastUsed = new Date().toISOString();
-        save();
+        // Read again before writing: the model call is slow, and another request may have saved meanwhile.
+        const fresh = await opts.store.load();
+        const k = fresh.keys.find((x) => x.id === key.id);
+        if (k) {
+          k.requests++;
+          k.input += usage?.prompt_tokens ?? 0;
+          k.output += usage?.completion_tokens ?? 0;
+          const day = ((k.daily ??= {})[today] ??= { requests: 0, input: 0, output: 0 });
+          day.requests++;
+          day.input += usage?.prompt_tokens ?? 0;
+          day.output += usage?.completion_tokens ?? 0;
+          k.lastUsed = new Date().toISOString();
+        }
+        (fresh.total ??= {})[today] = (fresh.total[today] ?? 0) + 1;
+        await opts.store.save(fresh);
       }
       return new Response(text, { status: up.status, headers: { "content-type": up.headers.get("content-type") ?? "application/json" } });
     }

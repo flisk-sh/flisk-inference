@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Plain English in, valid Flisk service.json out. A small open model behind an OpenAI-compatible API, free preview.">
+<meta name="description" content="Plain English in, valid Flisk service.json out. An open model with Flisk's rules behind an OpenAI-compatible API, free beta.">
 <title>Flisk Inference</title>
+<script src="https://flisk.si/assets/bar.js" defer></script>
 <style>
 :root{--bg:#08080c;--bg2:#0d0d13;--panel:#111117;--panel2:#17171f;--ink:#ececf1;--mut:rgba(236,236,241,.68);--faint:rgba(236,236,241,.46);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.18);
 --acc:#22c55e;--accink:#04120a;--acctext:#6ee7a0;--tint:rgba(34,197,94,.12);--blue:#38bdf8;--amber:#f59e0b;--red:#f43f5e;--glow:rgba(34,197,94,.08);--shadow:0 18px 50px rgba(0,0,0,.45);
@@ -93,7 +94,7 @@ function samples(){let cur="curl";const box=h("div");const draw=()=>{box.textCon
 
 /* ---------- landing ---------- */
 const CASES=[["Write a config","Turn a plain-English request into a valid Flisk service.json.",1],["Repair a rejected config","Give it the validator error and the broken file, get the smallest fix back.",1],["Route support tickets","Label billing, bug or how-to and pick the queue.",0],["Extract fields to JSON","Invoices and emails into a fixed schema.",0],["Triage log lines","Noise, known issue, or page someone.",0],["Make test data","Rows and fixtures that match a schema.",0]];
-const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","Large hosted",57,18],["flisk-wolf, prompted 7B","Small, long prompt (what runs here)",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
+const RESULTS=[["Claude Haiku 5.5","Large hosted",57,18],["Claude Sonnet 5.5","Large hosted",57,18],["flisk-wolf, prompted 7B","Small, long prompt",54,17],["flisk-wolf, trained 1.5B","Tiny, trained on a laptop (not served yet)",60,17]];
 function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
@@ -104,9 +105,9 @@ function landing(){
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
     h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
-    h("p",{class:"lead"},"A small open model that writes and repairs Flisk config files, behind an OpenAI-compatible API. Tested against Flisk's own validator, with the results published."),
+    h("p",{class:"lead"},"An open model with Flisk's rules that writes and repairs Flisk config files, behind an OpenAI-compatible API. Sign in with GitHub and get a key in a minute."),
     h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"#how"},"See the test results")),
-    h("ul",{class:"proof"},h("li",{},"OpenAI-compatible"),h("li",{},"Free while in preview"),h("li",{},"30 requests a minute"))),
+    h("ul",{class:"proof"},h("li",{},"OpenAI-compatible"),h("li",{},"Free beta"),h("li",{},"30 requests a minute"))),
    h("div",{class:"demo card"},
     h("div",{class:"demo-label"},"You ask"),
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
@@ -117,11 +118,11 @@ function landing(){
   h("section",{class:"block",id:"jobs"},h("h2",{},"Jobs for a small model"),h("p",{class:"sub"},"Adopt means we measured it. Assess means we think it fits and have not tested it yet."),
    h("div",{class:"grid"},...CASES.map(([t,d,tested])=>h("div",{class:"card"},h("span",{class:"tag "+(tested?"ok":"assess")},tested?"Adopt · tested":"Assess · untested"),h("h3",{},t),h("p",{},d))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
-   h("p",{class:"sub"},"Two held-out tests of writing Flisk config, graded by the real Flisk validator: 62 machine-written questions, and 29 written by hand in casual, messy wording (the fair one). On natural wording the trained model matches Claude, which was given no Flisk documentation, and does not beat it. It missed its own target. A gap of one question is noise."),
+   h("p",{class:"sub"},"Two held-out tests of writing Flisk config, graded by the real Flisk validator: 62 machine-written questions, and 29 written by hand in casual, messy wording (the fair one). On natural wording the trained model matches Claude, which was given no Flisk documentation, and does not beat it. It missed its own target. A gap of one question is noise. The hosted beta runs Qwen2.5-Coder 32B with the same rules, which is not scored in this table yet."),
    h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Machine-written (62)"),h("th",{class:"num"},"Natural wording (29)"))),
     h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 29")))))),
    h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
-  h("footer",{},"Free preview: 30 requests a minute per key, 1,024 output tokens per request. It is early, may be offline, and sign-in is limited to invited GitHub accounts while it is tested."))}
+  h("footer",{},"Beta: free, 30 requests a minute per key, 1,024 output tokens per request, and a shared daily limit. The model is Qwen2.5-Coder 32B with Flisk's rules on Cloudflare Workers AI. Keys and usage may be reset while it is in beta."))}
 
 /* ---------- console ---------- */
 const NAV=[["overview","Overview","home"],["keys","API keys","key"],["usage","Usage","chart"],["docs","Docs","book"]];
@@ -131,7 +132,8 @@ function shell(section,title,body){
    h("nav",{class:"nav"},...NAV.map(([k,l,i])=>h("a",{href:"?section="+k,class:section===k?"on":"","aria-current":section===k?"page":null,html:SVG[i]+"<span>"+l+"</span>"}))),
    h("div",{class:"foot"},h("div",{class:"who"},me&&me.avatar?h("img",{src:me.avatar,alt:"",width:30,height:30}):h("div",{class:"avatar"}),h("span",{},me?"@"+me.login:"Not signed in")),
     h("div",{style:"display:flex;gap:8px"},h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),me?h("a",{class:"btn sm",href:"/auth/logout"},"Sign out"):null))),
-  h("main",{},h("header",{},h("h1",{},title),h("span",{class:"pill"},h("i",{class:"dot "+(status?(status.ok?"ok":"bad"):"")}),status?(status.ok?"Model online":"Model offline"):"…")),h("div",{class:"content"},body)))}
+  h("main",{},h("header",{},h("h1",{},title,cfg.beta?h("span",{class:"tag assess",style:"margin-left:10px;vertical-align:middle"},"Beta"):null),h("span",{class:"pill"},h("i",{class:"dot "+(status?(status.ok?"ok":"bad"):"")}),status?(status.ok?"Model online":"Model offline"):"…")),h("div",{class:"content"},body)))}
+function betaNote(){return h("div",{class:"card",style:"border-color:var(--amber);margin-bottom:18px"},h("b",{},"Beta"),h("p",{style:"color:var(--mut);margin:4px 0 0"},"Free while in beta, with a shared limit of "+(cfg.dailyLimit?fmt(cfg.dailyLimit)+" requests a day":"requests a day")+" across everyone. The model behind flisk-wolf here is Qwen2.5-Coder 32B with Flisk's rules. Keys and usage may be reset before launch."))}
 function loginView(){
  const b=h("div",{class:"login-card"},h("div",{class:"card"},h("h2",{style:"font-size:22px;margin-bottom:8px"},"Sign in"),h("p",{style:"color:var(--mut)"},"Use your GitHub account to create API keys and see your usage. We only read your public login."),h("div",{class:"cta",id:"lb"})));
  const lb=$("#lb",b);if(cfg.oauth)lb.append(h("a",{class:"btn primary",href:"/auth/github"},"Sign in with GitHub"));if(cfg.dev)lb.append(h("a",{class:"btn",href:"/auth/dev"},"Local gh login (dev)"));
@@ -148,7 +150,7 @@ async function overview(){
  return h("div",{},h("div",{class:"stats"},
    h("div",{class:"card stat"},h("small",{},"Requests"),h("b",{},fmt(t.requests)),h("span",{},"all time")),
    h("div",{class:"card stat"},h("small",{},"Tokens"),h("b",{},fmt(t.input+t.output)),h("span",{},fmt(t.input)+" in · "+fmt(t.output)+" out")),
-   h("div",{class:"card stat"},h("small",{},"Cost"),h("b",{},"Free"),h("span",{},"preview, no billing yet"))),
+   h("div",{class:"card stat"},h("small",{},"Cost"),h("b",{},"Free"),h("span",{},"beta, no billing"))),
   h("div",{class:"card",style:"margin-bottom:18px"},chart),
   first?h("div",{class:"card newkey"},h("b",{},"Make your first request"),h("p",{style:"color:var(--mut);margin:4px 0 0"},"Create a key, then paste this into a terminal."),h("div",{style:"margin-top:10px"},h("a",{class:"btn primary",href:"?section=keys"},"Create an API key"))):null)}
 async function keysView(){
@@ -167,7 +169,7 @@ async function usageView(){
   h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Day"),h("th",{class:"num"},"Requests"),h("th",{class:"num"},"Tokens"))),h("tbody",{},...u.daily.slice().reverse().filter(d=>d.requests).map(d=>h("tr",{},h("td",{},d.date),h("td",{class:"num"},fmt(d.requests)),h("td",{class:"num"},fmt(d.input+d.output))))))))}
 function docsView(){return h("div",{},h("p",{style:"color:var(--mut);max-width:42em"},"An OpenAI-compatible endpoint. Point any OpenAI SDK at the base URL below and use your key."),
  h("div",{class:"card",style:"margin:14px 0"},h("small",{class:"mono",style:"color:var(--faint)"},"BASE URL"),h("div",{style:"margin-top:6px"},codeBlock(location.origin+"/v1"))),samples(),
- h("h3",{style:"margin:26px 0 10px;font-size:17px"},"Limits and errors"),h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[["30 / minute","Per key. Over it returns 429."],["1,024 tokens","Maximum output per request."],["No streaming","stream: true returns 400."],["One model","flisk-wolf. Another model name returns 400."],["401","Missing or revoked key."]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b)))))))}
+ h("h3",{style:"margin:26px 0 10px;font-size:17px"},"Limits and errors"),h("div",{class:"card",style:"padding:6px 10px"},h("table",{},h("tbody",{},...[["30 / minute","Per key. Over it returns 429."],["Daily limit","Shared by everyone in the beta. Over it returns 429 until 00:00 UTC."],["1,024 tokens","Maximum output per request."],["No streaming","stream: true returns 400."],["One model","flisk-wolf. Another model name returns 400."],["401","Missing or revoked key."]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b)))))))}
 const VIEWS={overview:["Overview",overview],keys:["API keys",keysView],usage:["Usage",usageView],docs:["Docs",async()=>docsView()]};
 async function route(){
  const q=new URLSearchParams(location.search).get("section");const root=$("#root");root.textContent="";
@@ -175,7 +177,7 @@ async function route(){
  const section=VIEWS[q]?q:"overview";
  if(!me&&section!=="docs"){root.append(shell(section,"Sign in",loginView()));return}
  const [title,view]=VIEWS[section];root.append(shell(section,title,h("div",{class:"empty"},"Loading…")));
- try{const body=await view();$(".content",root).replaceChildren(body)}catch(e){$(".content",root).replaceChildren(h("div",{class:"card empty"},h("b",{},"Something went wrong"),e.message))}}
+ try{const body=await view();$(".content",root).replaceChildren(...(cfg.beta?[betaNote()]:[]),body)}catch(e){$(".content",root).replaceChildren(h("div",{class:"card empty"},h("b",{},"Something went wrong"),e.message))}}
 (async()=>{theme();
  try{cfg=await (await fetch("/api/config")).json()}catch{}
  document.title=cfg.name||"Flisk Inference";
