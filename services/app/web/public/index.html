@@ -89,13 +89,13 @@ const api=async(p,o)=>{const r=await fetch(p,o);if(r.status===401)return null;co
 let me=null,cfg={name:"Flisk Inference",models:["flisk-wolf"]},status=null;
 
 function codeBlock(text,label){const pre=h("pre");pre.textContent=text;return h("div",{class:"code"},h("button",{class:"btn sm copy",onclick:()=>copy(text),"aria-label":"Copy code"},"Copy"),label?h("div",{class:"bar"},h("i"),h("i"),h("i")):null,pre)}
-const curl=(key="YOUR_API_KEY")=>`curl ${location.origin}/v1/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    "messages": [{"role":"user","content":"Write a Flisk service.json for a worker called emailer in the shop stack. Reply with the JSON only."}]\n  }'`;
-const py=(key="YOUR_API_KEY")=>`from openai import OpenAI\n\nclient = OpenAI(base_url="${location.origin}/v1", api_key="${key}")\nr = client.chat.completions.create(\n    model="${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    messages=[{"role": "user", "content": "Write a Flisk service.json for a worker called emailer in the shop stack."}],\n)\nprint(r.choices[0].message.content)`;
-const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: "${location.origin}/v1", apiKey: "${key}" });\nconst r = await client.chat.completions.create({\n  model: "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n  messages: [{ role: "user", content: "Write a Flisk service.json for a worker called emailer in the shop stack." }],\n});\nconsole.log(r.choices[0].message.content);`;
+const ASK="Write a Flisk service.json for an HTTP API called orders-api in the shop stack on port 4000 that depends on postgres.";
+const curl=(key="YOUR_API_KEY")=>`curl ${location.origin}/v1/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    "messages": [{"role":"user","content":"${ASK}"}]\n  }'`;
+const py=(key="YOUR_API_KEY")=>`from openai import OpenAI\n\nclient = OpenAI(base_url="${location.origin}/v1", api_key="${key}")\nr = client.chat.completions.create(\n    model="${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n    messages=[{"role": "user", "content": "${ASK}"}],\n)\nprint(r.choices[0].message.content)`;
+const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: "${location.origin}/v1", apiKey: "${key}" });\nconst r = await client.chat.completions.create({\n  model: "${(cfg.models&&cfg.models[0])||"flisk-wolf"}",\n  messages: [{ role: "user", content: "${ASK}" }],\n});\nconsole.log(r.choices[0].message.content);`;
 
 /* ---------- integrations: every SDK snippet here was run against this endpoint on 2026-11-10 ---------- */
 const M=()=>(cfg.models&&cfg.models[0])||"flisk-wolf";
-const ASK="Write a Flisk service.json for a worker called emailer in the shop stack.";
 const INTEGRATIONS=[
  ["vercel","Vercel AI SDK",()=>`// npm i ai @ai-sdk/openai-compatible\nimport { generateText } from "ai";\nimport { createOpenAICompatible } from "@ai-sdk/openai-compatible";\n\nconst flisk = createOpenAICompatible({\n  name: "flisk",\n  baseURL: "${location.origin}/v1",\n  apiKey: process.env.FLISK_API_KEY,\n});\n\nconst { text } = await generateText({\n  model: flisk("${M()}"),\n  prompt: "${ASK}",\n});\nconsole.log(JSON.parse(text));`],
  ["node","OpenAI SDK (Node)",()=>node("process.env.FLISK_API_KEY").replace('apiKey: "process.env.FLISK_API_KEY"',"apiKey: process.env.FLISK_API_KEY")],
@@ -114,20 +114,20 @@ function integrationsView(){return h("div",{},
 
 /* ---------- use cases ---------- */
 const USECASES=[
- ["Fix red CI without waiting for the platform team","Platform and DevEx teams",
-  "A pull request changes a service.json, flisk config verify rejects it, and the author waits for the one person who knows the schema.",
+ ["Fix rejected config in CI","Platform teams",
+  "A pull request breaks a service.json and its author waits for the one person who knows the schema.",
   "A CI step sends the validator errors and the file. The model replies with the smallest change that passes, saved as a suggestion for review.",
   "A fix to review in about 2 seconds. In our test, \"Billing API\" / \"api\" / \"4300\" came back as billing-api / backend / 4300."],
- ["Move existing services to Flisk","Tech leads migrating a repo",
-  "Ten services, each needing a service.json. Writing them means learning nine app types and the field rules first.",
+ ["Move a repo to Flisk","Tech leads",
+  "Ten services to describe, and nine app types and their field rules to learn first.",
   "Describe each service in one sentence (\"Node API on port 4000 that needs Postgres\") and review the files it writes.",
   "First drafts of every file in minutes, all in the same shape."],
- ["\"New service\" in your internal portal or Slack","Teams with a developer portal",
-  "People ask in chat how to add a worker or a database job, and the answer is copy-paste from an old repo.",
+ ["Self-service for new services","Internal tools",
+  "People ask in chat how to add a worker, and get a copy of some old repo's config.",
   "A form or Slack command sends the request in plain words and gets back a service.json.",
   "Self-service for routine services, with the same answer for the same request in every team."],
- ["A cheap specialist inside your own agent","Teams building agents",
-  "Your agent uses a large general model for everything, including small structured jobs it sometimes gets wrong.",
+ ["A specialist for your agent","Agent builders",
+  "Your agent sends every small structured job to a large general model, which sometimes gets them wrong.",
   "Hand config writing to this model through the Vercel AI SDK or LangChain.",
   "A narrow job with a known prompt, instead of hoping a general model knows Flisk."]];
 function useCasesView(){return h("div",{},
@@ -160,27 +160,27 @@ function landing(){
  const ok=status&&status.ok;
  return h("div",{class:"wrap"},
   h("nav",{class:"site-nav"},h("a",{class:"brand",href:"/",html:SVG.logo+"<span>Flisk Inference</span>"}),h("div",{class:"nav-r"},
-   h("a",{class:"btn sm",href:"?section=usecases"},"Use cases"),
-   h("a",{class:"btn sm",href:"?section=integrations"},"Integrations"),
+   h("a",{class:"btn sm",href:"#jobs"},"Use cases"),
+   h("a",{class:"btn sm",href:"#how"},"Results"),
    h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),
    h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
     h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
-    h("p",{class:"lead"},"Describe a service in one sentence and get its Flisk config back, or send a rejected file and get the fix. An OpenAI-compatible API, free while in beta."),
-    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key"),h("a",{class:"btn",href:"?section=usecases"},"What is it for?")),
-    h("ul",{class:"proof"},h("li",{},"Works with any OpenAI SDK"),h("li",{},"Sign in with GitHub"),h("li",{},"No card"))),
+    h("p",{class:"lead"},"Write a service.json from one sentence, or send a rejected one and get the smallest fix."),
+    h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key")),
+    h("ul",{class:"proof"},h("li",{},"Works with any OpenAI SDK"),h("li",{},"Free beta, no card"),h("li",{},"Sign in with GitHub"))),
    h("div",{class:"demo card"},
     h("div",{class:"demo-label"},"You ask"),
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
     h("div",{class:"demo-label"},"You get"),
     codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}'),
-    h("div",{class:"demo-note"},"A real answer from the model. It passes the Flisk validator."))),
-  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Create a key, then point your client at this address."),integrations()),
-  h("section",{class:"block",id:"jobs"},h("h2",{},"What teams use it for"),
+    h("div",{class:"demo-note"},"A real answer from the model."))),
+  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Create a key, then point any OpenAI-compatible client at this address."),integrations()),
+  h("section",{class:"block",id:"jobs"},h("h2",{},"What teams use it for"),h("p",{class:"sub"},h("a",{href:"?section=usecases"},"How each one works, and what you get")),
    h("div",{class:"grid"},...USECASES.map(([t,who,problem])=>h("a",{class:"card",href:"?section=usecases",style:"text-decoration:none"},h("span",{class:"tag ok"},who),h("h3",{},t),h("p",{},problem))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
-   h("p",{class:"sub"},"Two held-out tests, graded by the real Flisk validator: 62 machine-written questions, and 29 written by hand in casual wording (the fair one). On natural wording our models match Claude, which had no Flisk documentation, and do not beat it. The hosted beta runs Qwen2.5-Coder 32B with the same rules, not scored here yet."),
+   h("p",{class:"sub"},"Every answer is graded by the real Flisk validator, on 62 machine-written requests and 29 written by hand in casual wording (the fair test). On casual wording our models match Claude, which had no Flisk docs, and do not beat it. The hosted beta runs Qwen2.5-Coder 32B with the same rules, not scored yet."),
    h("div",{class:"card",style:"padding:6px 10px;overflow:auto"},h("table",{},h("thead",{},h("tr",{},h("th",{},"Model"),h("th",{},"Kind"),h("th",{class:"num"},"Machine-written (62)"),h("th",{class:"num"},"Natural wording (29)"))),
     h("tbody",{},...RESULTS.map(([n,k,p,mine])=>h("tr",{class:n.includes("trained")?"hl":""},h("td",{},n),h("td",{style:"color:var(--mut)"},k),h("td",{class:"num"},p+" / 62"),h("td",{class:"num"},mine+" / 29")))))),
    h("p",{style:"margin-top:14px"},h("a",{class:"btn sm",href:"https://github.com/flisk-sh/flisk-model#results"},"Read the full test and results"))),
