@@ -31,6 +31,7 @@ const portal = createPortal({
   upstreamUrl: (process.env.UPSTREAM_URL ?? "http://127.0.0.1:11434").replace(/\/$/, ""),
   store: fileStore(process.env.DATA_DIR ?? join(import.meta.dir, "..", "data")),
   indexHtml: () => readFileSync(join(import.meta.dir, "..", "public", "index.html"), "utf-8"),
+  asset: (path) => new Response(Bun.file(join(import.meta.dir, "..", "public", path))),
   allowedModels: (process.env.ALLOWED_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   github: clientId && clientSecret ? { clientId, clientSecret } : undefined,
   devLogin,

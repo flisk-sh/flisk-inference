@@ -37,6 +37,7 @@ export default {
       allowedLogins: (env.ALLOWED_LOGINS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       dailyLimit: Number(env.DAILY_LIMIT) || undefined,
       beta: true,
+      asset: (path) => env.ASSETS.fetch(new Request(new URL(path, env.PUBLIC_URL))),
       indexHtml: async () => (await env.ASSETS.fetch(new Request(new URL("/index.html", env.PUBLIC_URL)))).text(),
     });
     return portal.fetch(req);
