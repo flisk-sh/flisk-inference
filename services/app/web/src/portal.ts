@@ -13,6 +13,7 @@ export interface PortalOptions {
   store: Store;                       // users, hashed keys, usage, cookie secret
   dailyLimit?: number;                // model requests per UTC day across all keys; missing: no cap
   beta?: boolean;                     // the console says the service is in beta
+  maxOutputTokens?: number;           // shown in the console; the upstream enforces it
   allowedModels?: string[];           // empty or missing: any model
   github?: { clientId: string; clientSecret: string };
   devLogin?: () => Promise<GithubUser>; // local sign-in as the machine's gh user; never set in production
@@ -116,7 +117,8 @@ export function createPortal(opts: PortalOptions) {
       }
       return json(200, { ok: statusCache.ok, models: opts.allowedModels ?? [], checkedAt: new Date(statusCache.at).toISOString() });
     }
-    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [], beta: Boolean(opts.beta), dailyLimit: opts.dailyLimit ?? null });
+    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [], beta: Boolean(opts.beta), dailyLimit: opts.dailyLimit ?? null,
+      limits: { perMinute: ratePerMinute, perDay: opts.dailyLimit ?? null, maxKeys: maxActiveKeys, maxOutputTokens: opts.maxOutputTokens ?? 1024, maxBodyKb: Math.round(maxBody / 1024) } });
 
     // ---- sign-in
     if (path === "/auth/github") {
@@ -182,7 +184,9 @@ export function createPortal(opts: PortalOptions) {
           const d = mine.reduce((a, k) => ({ requests: a.requests + (k.daily?.[date]?.requests ?? 0), input: a.input + (k.daily?.[date]?.input ?? 0), output: a.output + (k.daily?.[date]?.output ?? 0) }), { requests: 0, input: 0, output: 0 });
           return { date, ...d };
         });
-        return json(200, { totals: { requests: sum("requests"), input: sum("input"), output: sum("output") }, keys, daily });
+        const date = new Date().toISOString().slice(0, 10);
+        // `today` is everyone's requests today: the daily limit is shared, so this is what is left for this user too.
+        return json(200, { totals: { requests: sum("requests"), input: sum("input"), output: sum("output") }, keys, daily, today: { date, used: db.total?.[date] ?? 0, limit: opts.dailyLimit ?? null } });
       }
       return json(404, { error: "not found" });
     }

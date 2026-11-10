@@ -214,6 +214,19 @@ describe("beta limits", () => {
     expect(((await over.json()) as { error: { message: string } }).error.message).toContain("daily limit");
     expect(upstreamCalls).toHaveLength(2);
   });
+  it("reports today's shared use against the daily limit in /api/usage", async () => {
+    const p = make({ dailyLimit: 5 });
+    const cookie = await login(p);
+    const { key } = await newKey(p, cookie);
+    await p.fetch(chat(key));
+    await p.fetch(chat(key));
+    const u = (await (await p.fetch(req("/api/usage", { cookie }))).json()) as { today: { used: number; limit: number } };
+    expect(u.today).toMatchObject({ used: 2, limit: 5 });
+  });
+  it("lists every free limit in /api/config so the console can show them", async () => {
+    const cfg = (await (await make({ dailyLimit: 100 }).fetch(req("/api/config"))).json()) as { limits: Record<string, number> };
+    expect(cfg.limits).toEqual({ perMinute: 30, perDay: 100, maxKeys: 10, maxOutputTokens: 1024, maxBodyKb: 64 });
+  });
   it("says beta and the daily limit in /api/config", async () => {
     const cfg = (await (await make({ beta: true, dailyLimit: 300 }).fetch(req("/api/config"))).json()) as { beta: boolean; dailyLimit: number };
     expect(cfg).toMatchObject({ beta: true, dailyLimit: 300 });
