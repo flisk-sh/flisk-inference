@@ -18,13 +18,13 @@ cd services/app/web && bun install
 FLISK_DEV_LOGIN=1 UPSTREAM_URL=http://127.0.0.1:11434 ALLOWED_MODELS=flisk-wolf bun run dev
 ```
 
-Open <http://localhost:4000>. For a real server with no laptop, see **[DEPLOY.md](DEPLOY.md)**. Settings are in the table in [flisk-template-portal](https://github.com/flisk-sh/flisk-template-portal#settings).
+Open <http://localhost:4000>. To host it on a server, see **[DEPLOY.md](DEPLOY.md)**. Settings are in the table in [flisk-template-portal](https://github.com/flisk-sh/flisk-template-portal#settings).
 
 ## Status
 
 Early and honest. Read this before trusting the address:
 
-- **This repo is what `inference.flisk.si` serves today, through a stop-gap.** It runs on a laptop behind a Cloudflare tunnel ([`deploy/run-local-bridge.sh`](deploy/run-local-bridge.sh)), so the address is only up while that laptop is on. The real fix is a small Linux server with a persistent volume ([DEPLOY.md](DEPLOY.md)). The code passes its 25 tests in CI.
+- **`inference.flisk.si` shows a beta page, not this portal.** The page is a static Cloudflare Worker in [`beta-site/`](beta-site/) (deploy by hand: `cd beta-site && bunx wrangler@4 deploy`); `/v1/*` answers 503. The portal is not hosted anywhere until it has a free or cheap server that is not someone's laptop ([DEPLOY.md](DEPLOY.md)). The code passes its 25 tests in CI.
 - **The model behind it is the prompted 7B.** A trained 1.5B has finished two rounds of training, but its weights are not exported, so it is not served anywhere. Its latest scores: 60 of 62 on the machine-written test, and **17 of 29 on the clean natural-wording test, against 18 for Claude Haiku and Sonnet and 17 for the prompted 7B**. That is level with Claude, not better, and it missed its own target of 22 of 26. The numbers, the misses and the plan: [flisk-model](https://github.com/flisk-sh/flisk-model).
 - **Sign-in is invited-only** while it is tested.
 
