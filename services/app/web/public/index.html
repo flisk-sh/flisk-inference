@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Plain English in, valid Flisk service.json out. An open model with Flisk's rules behind an OpenAI-compatible API, free beta.">
+<meta name="description" content="A small free model that reviews the service.json in your pull requests from GitHub Actions, or writes one from a sentence. OpenAI-compatible API, free beta.">
 <title>Flisk Inference: plain English in, valid service.json out</title>
 <meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#eeece5" media="(prefers-color-scheme: light)">
@@ -12,7 +12,7 @@
 <link rel="canonical" href="https://inference.flisk.si/">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Flisk Inference">
 <meta property="og:title" content="Flisk Inference: plain English in, valid service.json out">
-<meta property="og:description" content="Write a Flisk service.json from one sentence, or send a rejected one and get the smallest fix. OpenAI-compatible API, free beta.">
+<meta property="og:description" content="Add one GitHub Actions step and a small free model checks every service.json a pull request changes and comments the fix. OpenAI-compatible API, free beta.">
 <meta property="og:url" content="https://inference.flisk.si/"><meta property="og:image" content="https://inference.flisk.si/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Flisk Inference: plain English in, valid service.json out">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Flisk Inference: plain English in, valid service.json out"><meta name="twitter:image" content="https://inference.flisk.si/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -338,10 +338,10 @@ function landing(){
    h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
-    h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
-    h("p",{class:"lead"},"Write a service.json from one sentence, or send a rejected one and get the smallest fix."),
+    h("h1",{},"Review every service.json",h("br"),"in your pull requests."),
+    h("p",{class:"lead"},"Add one GitHub Actions step and a small model checks each service.json a pull request changes, then comments the smallest fix. It can also write one from a sentence. It is a beta with limited capacity, built for Flisk config; we may teach it basic code review over time."),
     h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key")),
-    h("ul",{class:"proof"},h("li",{},"Works with any OpenAI SDK"),h("li",{},"Free beta, no card"),h("li",{},"Sign in with GitHub"))),
+    h("ul",{class:"proof"},h("li",{},"Runs in GitHub Actions"),h("li",{},"Works with any OpenAI SDK"),h("li",{},"Free beta, no card"),h("li",{},"Sign in with GitHub"))),
    h("div",{class:"demo card"},
     h("div",{class:"demo-label"},"You ask"),
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
