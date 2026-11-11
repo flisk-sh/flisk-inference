@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Plain English in, valid Flisk service.json out. An open model with Flisk's rules behind an OpenAI-compatible API, free beta.">
+<meta name="description" content="A small free model that reviews the service.json in your pull requests from GitHub Actions, or writes one from a sentence. OpenAI-compatible API, free beta.">
 <title>Flisk Inference: plain English in, valid service.json out</title>
 <meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#eeece5" media="(prefers-color-scheme: light)">
@@ -12,7 +12,7 @@
 <link rel="canonical" href="https://inference.flisk.si/">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Flisk Inference">
 <meta property="og:title" content="Flisk Inference: plain English in, valid service.json out">
-<meta property="og:description" content="Write a Flisk service.json from one sentence, or send a rejected one and get the smallest fix. OpenAI-compatible API, free beta.">
+<meta property="og:description" content="Add one GitHub Actions step and a small free model checks every service.json a pull request changes and comments the fix. OpenAI-compatible API, free beta.">
 <meta property="og:url" content="https://inference.flisk.si/"><meta property="og:image" content="https://inference.flisk.si/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Flisk Inference: plain English in, valid service.json out">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Flisk Inference: plain English in, valid service.json out"><meta name="twitter:image" content="https://inference.flisk.si/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -201,6 +201,44 @@ const node=(key="YOUR_API_KEY")=>`import OpenAI from "openai";\n\nconst client =
 /* ---------- integrations: every SDK snippet here was run against this endpoint on 2026-11-10 ---------- */
 const M=()=>(cfg.models&&cfg.models[0])||"flisk-wolf";
 const INTEGRATIONS=[
+ ["gha","GitHub Actions: review every PR",()=>`# .github/workflows/wolf-review.yml
+# Reviews every service.json a pull request changes and comments a suggested fix.
+# Add the repo secret FLISK_API_KEY (a key from this site). Fork PRs get no secret, so they are skipped.
+name: Wolf review
+on:
+  pull_request:
+    paths: ["**/service.json"]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Ask Wolf about each changed service.json
+        shell: bash
+        env:
+          FLISK_API_KEY: \${{ secrets.FLISK_API_KEY }}
+          GH_TOKEN: \${{ github.token }}
+          BASE: \${{ github.event.pull_request.base.sha }}
+          PR: \${{ github.event.pull_request.number }}
+        run: |
+          [ -n "$FLISK_API_KEY" ] || exit 0
+          : > review.md
+          for f in $(git diff --name-only --diff-filter=AM "$BASE"...HEAD -- '**/service.json' | head -5); do
+            jq -n --rawfile file "$f" '{model: "${M()}", messages: [{role: "user",
+              content: ("Check this Flisk service.json. If it is valid, reply with it unchanged. If not, fix it with the smallest change, keeping every other field. Reply with the JSON object only.\\n\\n" + $file)}]}' \\
+            | curl -sf ${location.origin}/v1/chat/completions \\
+                -H "Authorization: Bearer $FLISK_API_KEY" -H "Content-Type: application/json" -d @- \\
+            | jq -r '.choices[0].message.content' > fix.json || true
+            if jq -e . fix.json >/dev/null 2>&1 && ! diff <(jq -S . "$f") <(jq -S . fix.json) >/dev/null; then
+              { echo "**$f**: suggested version, check it before using it."; echo '~~~json'; jq . fix.json; echo '~~~'; } >> review.md
+            fi
+          done
+          # one comment per PR, updated on each push; it never fails the build
+          if [ -s review.md ]; then gh pr comment "$PR" --body-file review.md --edit-last --create-if-none || true; fi`,"yaml"],
  ["vercel","Vercel AI SDK",()=>`// npm i ai @ai-sdk/openai-compatible\nimport { generateText } from "ai";\nimport { createOpenAICompatible } from "@ai-sdk/openai-compatible";\n\nconst flisk = createOpenAICompatible({\n  name: "flisk",\n  baseURL: "${location.origin}/v1",\n  apiKey: process.env.FLISK_API_KEY,\n});\n\nconst { text } = await generateText({\n  model: flisk("${M()}"),\n  prompt: "${ASK}",\n});\nconsole.log(JSON.parse(text));`,"javascript"],
  ["node","OpenAI SDK (Node)",()=>node("process.env.FLISK_API_KEY").replace('apiKey: "process.env.FLISK_API_KEY"',"apiKey: process.env.FLISK_API_KEY"),"javascript"],
  ["python","OpenAI SDK (Python)",()=>py("KEY").replace('api_key="KEY"','api_key=os.environ["FLISK_API_KEY"]').replace("from openai import OpenAI","import os\nfrom openai import OpenAI"),"python"],
@@ -217,7 +255,7 @@ function tabbed(items,cur,render){const id="tabs"+(++tabSeq),box=h("div");
    h("div",{role:"tabpanel",id:id+"-panel","aria-labelledby":id+"-"+cur,tabindex:"0"},render(cur)));
   if(focus)box.querySelector('[aria-selected="true"]').focus()};
  draw();return box}
-function integrations(){return tabbed(INTEGRATIONS.map(([k,l])=>[k,l]),"vercel",k=>{const x=INTEGRATIONS.find(i=>i[0]===k);return codeBlock(x[2](),true,x[3])})}
+function integrations(){return tabbed(INTEGRATIONS.map(([k,l])=>[k,l]),"gha",k=>{const x=INTEGRATIONS.find(i=>i[0]===k);return codeBlock(x[2](),true,x[3])})}
 function integrationsView(){return h("div",{},
  h("p",{class:"sub",style:"color:var(--mut);max-width:44em;margin:0 0 16px"},"Anything that takes an OpenAI base URL works: base URL ",h("code",{},location.origin+"/v1"),", model ",h("code",{},M()),", and your key in FLISK_API_KEY. Keep the key out of browser code."),
  integrations(),
@@ -241,6 +279,10 @@ function demos(){return tabbed(DEMOS.map(([k,l])=>[k,l]),DEMOS[0][0],k=>{const [
 
 /* ---------- use cases ---------- */
 const USECASES=[
+ ["Review every pull request on GitHub","Every team on GitHub",
+  "A pull request changes a service.json and nobody on the team remembers every field rule, so mistakes reach flisk up.",
+  "A GitHub Actions workflow sends each changed service.json to this API on every pull request and comments a corrected version when the model would change it. Copy it from the GitHub Actions tab under Integrations.",
+  "A suggested fix in the pull request, a few seconds after it opens. The comment is a suggestion only and never blocks a merge."],
  ["Fix rejected config in CI","Platform teams",
   "A pull request breaks a service.json and its author waits for the one person who knows the schema.",
   "A CI step sends the validator errors and the file. The model replies with the smallest change that passes, saved as a suggestion for review.",
@@ -296,10 +338,10 @@ function landing(){
    h("a",{class:"btn sm primary",href:"?section=keys"},me?"Console":"Sign in"))),
   h("div",{class:"hero"},
    h("div",{},h("span",{class:"pill"},h("i",{class:"dot "+(status?(ok?"ok":"bad"):"")}),status?(ok?"Model online":"Model offline right now"):"Checking status"),
-    h("h1",{},"Plain English in.",h("br"),"Valid service.json out."),
-    h("p",{class:"lead"},"Write a service.json from one sentence, or send a rejected one and get the smallest fix."),
+    h("h1",{},"Review every service.json",h("br"),"in your pull requests."),
+    h("p",{class:"lead"},"Add one GitHub Actions step and a small model checks each service.json a pull request changes, then comments the smallest fix. It can also write one from a sentence. It is a beta with limited capacity, built for Flisk config; we may teach it basic code review over time."),
     h("div",{class:"cta"},h("a",{class:"btn primary",href:"?section=keys"},"Get an API key")),
-    h("ul",{class:"proof"},h("li",{},"Works with any OpenAI SDK"),h("li",{},"Free beta, no card"),h("li",{},"Sign in with GitHub"))),
+    h("ul",{class:"proof"},h("li",{},"Runs in GitHub Actions"),h("li",{},"Works with any OpenAI SDK"),h("li",{},"Free beta, no card"),h("li",{},"Sign in with GitHub"))),
    h("div",{class:"demo card"},
     h("div",{class:"demo-label"},"You ask"),
     h("div",{class:"demo-q"},"Write a Flisk service.json for a worker called emailer in the shop stack."),
@@ -307,7 +349,7 @@ function landing(){
     codeBlock('{\n  "schemaVersion": 1,\n  "appName": "emailer",\n  "appType": "worker",\n  "stack": "shop"\n}',false,"json"),
     h("div",{class:"demo-note"},"A real answer from the model."))),
   h("section",{class:"block",id:"demos"},h("h2",{},"See it work"),h("p",{class:"sub"},"Five real runs: write a file, a one-shot job, fix a rejected file, ask the docs, and suggest fixes in CI. Nothing here is edited."),demos()),
-  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Create a key, then point any OpenAI-compatible client at this address."),integrations()),
+  h("section",{class:"block",id:"api"},h("h2",{},"Call it from anywhere"),h("p",{class:"sub"},"Create a key, then point any OpenAI-compatible client at this address. Most teams start with GitHub Actions: the first tab is a workflow that reviews every pull request."),integrations()),
   h("section",{class:"block",id:"jobs"},h("h2",{},"What teams use it for"),h("p",{class:"sub"},h("a",{href:"?section=usecases"},"How each one works, and what you get")),
    h("div",{class:"grid"},...USECASES.map(([t,who,problem])=>h("a",{class:"card",href:"?section=usecases",style:"text-decoration:none"},h("span",{class:"tag ok"},who),h("h3",{},t),h("p",{},problem))))),
   h("section",{class:"block",id:"how"},h("h2",{},"How good is it, honestly"),
