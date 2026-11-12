@@ -29,11 +29,22 @@ export interface PortalOptions {
   bootstrapKey?: string;              // a fixed API key accepted from the start, for a preview that has no sign-in
   fetchImpl?: typeof fetch;           // for tests
 }
-interface User { id: string; login: string; name: string; avatar: string; created: string }
+export interface User { id: string; login: string; name: string; avatar: string; created: string }
 interface Day { requests: number; input: number; output: number }
-interface Key { daily?: Record<string, Day>; id: string; userId: string; name: string; hash: string; prefix: string; last4: string; created: string; lastUsed: string | null; requests: number; input: number; output: number; revoked: boolean }
+export interface Key { daily?: Record<string, Day>; id: string; userId: string; name: string; hash: string; prefix: string; last4: string; created: string; lastUsed: string | null; requests: number; input: number; output: number; revoked: boolean }
 export interface Db { users: Record<string, User>; keys: Key[]; total?: Record<string, number>; neurons?: Record<string, number> }
-export interface Store { load(): Promise<Db>; save(db: Db): Promise<void>; secret(): Promise<string> }
+// What one successful model call adds. `neurons` is the Workers AI cost of the call (0 when there is no neuron budget).
+export interface Use { input: number; output: number; neurons: number }
+// Every write changes one thing and never replaces the whole state, so two requests that overlap cannot undo each other:
+// a revoke is `UPDATE keys SET revoked = 1`, and usage is added to (`n = n + ?`), never read, changed and written back.
+export interface Store {
+  load(): Promise<Db>;
+  secret(): Promise<string>;
+  putUser(user: User): Promise<void>;                         // insert, or update login/name/avatar and keep `created`
+  addKey(key: Key): Promise<void>;
+  revokeKey(id: string): Promise<void>;                       // sets revoked and nothing else
+  recordUse(keyId: string, day: string, use: Use): Promise<void>; // adds one request and the tokens to the key, its day and the day's totals
+}
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -74,9 +85,8 @@ export function createPortal(opts: PortalOptions) {
     const db = await opts.store.load();
     const hash = sha(opts.bootstrapKey);
     if (!db.keys.some((k) => k.hash === hash)) {
-      db.users.bootstrap ??= { id: "bootstrap", login: "preview", name: "Preview key", avatar: "", created: new Date().toISOString() };
-      db.keys.push({ id: randomBytes(6).toString("hex"), userId: "bootstrap", name: "preview", hash, prefix: opts.bootstrapKey.slice(0, 5), last4: opts.bootstrapKey.slice(-4), created: new Date().toISOString(), lastUsed: null, requests: 0, input: 0, output: 0, revoked: false });
-      await opts.store.save(db);
+      await opts.store.putUser({ id: "bootstrap", login: "preview", name: "Preview key", avatar: "", created: new Date().toISOString() });
+      await opts.store.addKey({ id: randomBytes(6).toString("hex"), userId: "bootstrap", name: "preview", hash, prefix: opts.bootstrapKey.slice(0, 5), last4: opts.bootstrapKey.slice(-4), created: new Date().toISOString(), lastUsed: null, requests: 0, input: 0, output: 0, revoked: false });
     }
   })();
 
@@ -125,10 +135,8 @@ export function createPortal(opts: PortalOptions) {
     } catch { return null; }
   }
   async function upsertUser(gh: GithubUser): Promise<string> {
-    const db = await opts.store.load();
     const id = String(gh.id);
-    db.users[id] = { id, login: gh.login, name: gh.name ?? gh.login, avatar: gh.avatar_url ?? "", created: db.users[id]?.created ?? new Date().toISOString() };
-    await opts.store.save(db);
+    await opts.store.putUser({ id, login: gh.login, name: gh.name ?? gh.login, avatar: gh.avatar_url ?? "", created: new Date().toISOString() });
     return id;
   }
   async function readJson(req: Request): Promise<Record<string, unknown>> {
@@ -199,7 +207,6 @@ export function createPortal(opts: PortalOptions) {
     // ---- console API (session cookie)
     if (path.startsWith("/api/")) {
       const db = await opts.store.load();
-      const save = () => opts.store.save(db);
       const user = sessionUser(req, db);
       if (path === "/api/me" && req.method === "GET" && !user) return json(200, null);
       if (!user) return json(401, { error: "not signed in" });
@@ -213,16 +220,14 @@ export function createPortal(opts: PortalOptions) {
         if (mine.filter((k) => !k.revoked).length >= maxActiveKeys) return json(400, { error: `limit of ${maxActiveKeys} active keys` });
         const key = `fi-${randomBytes(24).toString("base64url")}`;
         const rec: Key = { id: randomBytes(6).toString("hex"), userId: user.id, name: String(body.name || "default").slice(0, 40), hash: sha(key), prefix: key.slice(0, 5), last4: key.slice(-4), created: new Date().toISOString(), lastUsed: null, requests: 0, input: 0, output: 0, revoked: false };
-        db.keys.push(rec);
-        await save();
+        await opts.store.addKey(rec);
         return json(201, { id: rec.id, name: rec.name, key }); // the only time the full key is returned
       }
       const del = /^\/api\/keys\/([0-9a-f]+)$/.exec(path);
       if (del && req.method === "DELETE") {
         const k = mine.find((x) => x.id === del[1]);
         if (!k) return json(404, { error: "no such key" });
-        k.revoked = true;
-        await save();
+        await opts.store.revokeKey(k.id);
         return json(200, { ok: true });
       }
       if (path === "/api/usage") {
@@ -278,27 +283,10 @@ export function createPortal(opts: PortalOptions) {
       let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
       try { usage = (JSON.parse(text) as { usage?: typeof usage }).usage; } catch { /* not JSON: count the request only */ }
       if (up.ok) {
-        // Read again before writing: the model call is slow, and another request may have saved meanwhile.
-        const fresh = await opts.store.load();
-        const k = fresh.keys.find((x) => x.id === key.id);
-        if (k) {
-          k.requests++;
-          k.input += usage?.prompt_tokens ?? 0;
-          k.output += usage?.completion_tokens ?? 0;
-          const day = ((k.daily ??= {})[today] ??= { requests: 0, input: 0, output: 0 });
-          day.requests++;
-          day.input += usage?.prompt_tokens ?? 0;
-          day.output += usage?.completion_tokens ?? 0;
-          k.lastUsed = new Date().toISOString();
-        }
-        (fresh.total ??= {})[today] = (fresh.total[today] ?? 0) + 1;
-        if (opts.dailyNeurons) {
-          const spent = (usage?.prompt_tokens ?? 0) * opts.dailyNeurons.perInputToken + (usage?.completion_tokens ?? 0) * opts.dailyNeurons.perOutputToken;
-          (fresh.neurons ??= {})[today] = Math.round((fresh.neurons[today] ?? 0) + spent);
-          // Keep a week: the row is rewritten on every call, so old days would only make it longer.
-          for (const d of Object.keys(fresh.neurons)) if (d < new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)) delete fresh.neurons[d];
-        }
-        await opts.store.save(fresh);
+        // Add this call to the counters. Nothing is read first and nothing is written back whole, so a key revoked or
+        // created while the (slow) model call ran is left alone.
+        const spent = opts.dailyNeurons ? (usage?.prompt_tokens ?? 0) * opts.dailyNeurons.perInputToken + (usage?.completion_tokens ?? 0) * opts.dailyNeurons.perOutputToken : 0;
+        await opts.store.recordUse(key.id, today, { input: usage?.prompt_tokens ?? 0, output: usage?.completion_tokens ?? 0, neurons: spent });
       }
       return new Response(text, { status: up.status, headers: { "content-type": up.headers.get("content-type") ?? "application/json" } });
     }
