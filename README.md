@@ -8,7 +8,7 @@ Built on [flisk-template-portal](https://github.com/flisk-sh/flisk-template-port
 
 - **Landing page** with live model status, code samples (curl, Python, Node) and an honest results table.
 - **Console:** overview with a 30-day chart, API keys (shown once, stored as hashes), per-key usage, docs.
-- **API:** `POST /v1/chat/completions` and `GET /v1/models`, one model, 30 requests a minute per key, 1,024 output tokens, no streaming.
+- **API:** `POST /v1/chat/completions` and `GET /v1/models`, one model, 30 requests a minute per key (best-effort: counted in each Worker instance's memory, so the real limit can be higher when requests reach several instances), 1,024 output tokens, no streaming.
 - **Safe by default:** GitHub sign-in limited to an allowlist, signed cookies, cross-origin writes refused, rate limits, a body size cap. 25 tests.
 
 ## Examples

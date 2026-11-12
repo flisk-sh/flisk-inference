@@ -37,6 +37,13 @@ async function newKey(portal: ReturnType<typeof make>, cookie: string, name = "t
   expect(res.status).toBe(201);
   return (await res.json()) as { id: string; key: string };
 }
+// Start the GitHub flow the way a browser does: the state is in the redirect, and the signed cookie comes back on the callback.
+async function startOauth(portal: ReturnType<typeof make>) {
+  const res = await portal.fetch(req("/auth/github"));
+  const state = new URL(res.headers.get("location") ?? "").searchParams.get("state") ?? "";
+  const cookie = (res.headers.get("set-cookie") ?? "").split(";")[0];
+  return { state, cookie };
+}
 const chat = (key: string, body: unknown = { model: "m", messages: [] }) =>
   req("/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) });
 
@@ -75,6 +82,42 @@ describe("sign-in", () => {
     expect(start.headers.get("location")).toContain("https://github.com/login/oauth/authorize?client_id=id");
     expect((await p.fetch(req("/auth/callback?state=nope&code=x"))).status).toBe(400);
   });
+  describe("the sign-in state is a signed cookie, not memory", () => {
+    const gh = { clientId: "id", clientSecret: "secret" };
+    const githubFetch = (async (input: RequestInfo | URL) =>
+      new Response(JSON.stringify(String(input).includes("access_token") ? { access_token: "tok" } : ME))) as typeof fetch;
+    it("signs in when the callback reaches a different portal instance than the start", async () => {
+      const first = make({ github: gh, fetchImpl: githubFetch }); // same data folder, so the same signing secret
+      const second = make({ github: gh, fetchImpl: githubFetch });
+      const { state, cookie } = await startOauth(first);
+      const done = await second.fetch(req(`/auth/callback?state=${state}&code=abc`, { cookie }));
+      expect(done.status).toBe(302);
+      expect(done.headers.get("set-cookie")).toContain("fi_session=");
+    });
+    it("refuses a callback whose cookie is missing, forged, for another state, or expired", async () => {
+      const p = make({ github: gh, fetchImpl: githubFetch });
+      const { state, cookie } = await startOauth(p);
+      const other = await startOauth(p);
+      const url = `/auth/callback?state=${state}&code=abc`;
+      expect((await p.fetch(req(url))).status).toBe(400);
+      expect((await p.fetch(req(url, { cookie: `${cookie}x` }))).status).toBe(400); // signature broken
+      expect((await p.fetch(req(url, { cookie: other.cookie }))).status).toBe(400); // a valid cookie, but for a different state
+      expect((await p.fetch(req(url, { cookie: "fi_oauth=e30.e30" }))).status).toBe(400);
+      const now = Date.now;
+      Date.now = () => now() + 11 * 60_000;
+      try { expect((await p.fetch(req(url, { cookie }))).status).toBe(400); } finally { Date.now = now; }
+      expect((await p.fetch(req(url, { cookie }))).status).toBe(302); // and the real one still works
+    });
+    it("sets the state cookie HttpOnly, Lax, scoped to /auth and short-lived", async () => {
+      const res = await make({ github: gh }).fetch(req("/auth/github"));
+      const c = res.headers.get("set-cookie") ?? "";
+      expect(c).toMatch(/^fi_oauth=/);
+      expect(c).toContain("HttpOnly");
+      expect(c).toContain("SameSite=Lax");
+      expect(c).toContain("Path=/auth");
+      expect(c).toContain("Max-Age=600");
+    });
+  });
   it("refuses a GitHub login that is not on the allowlist", async () => {
     const p = make({
       github: { clientId: "id", clientSecret: "secret" },
@@ -82,8 +125,8 @@ describe("sign-in", () => {
       fetchImpl: (async (input: RequestInfo | URL) =>
         new Response(JSON.stringify(String(input).includes("access_token") ? { access_token: "tok" } : ME))) as typeof fetch,
     });
-    const state = new URL((await p.fetch(req("/auth/github"))).headers.get("location") ?? "").searchParams.get("state");
-    const res = await p.fetch(req(`/auth/callback?state=${state}&code=abc`));
+    const { state, cookie } = await startOauth(p);
+    const res = await p.fetch(req(`/auth/callback?state=${state}&code=abc`, { cookie }));
     expect(res.status).toBe(403);
     expect(res.headers.get("set-cookie")).toBeNull();
   });
@@ -96,12 +139,13 @@ describe("sign-in", () => {
         return new Response(JSON.stringify(String(input).includes("access_token") ? { access_token: "tok" } : ME));
       }) as typeof fetch,
     });
-    const state = new URL((await p.fetch(req("/auth/github"))).headers.get("location") ?? "").searchParams.get("state");
-    const done = await p.fetch(req(`/auth/callback?state=${state}&code=abc`));
+    const { state, cookie } = await startOauth(p);
+    const done = await p.fetch(req(`/auth/callback?state=${state}&code=abc`, { cookie }));
     expect(done.status).toBe(302);
     expect(done.headers.get("set-cookie")).toContain("fi_session=");
+    expect(done.headers.get("set-cookie")).toContain("fi_oauth=; Max-Age=0"); // the state cookie is cleared
     expect(calls).toEqual(["https://github.com/login/oauth/access_token", "https://api.github.com/user"]);
-    expect((await p.fetch(req(`/auth/callback?state=${state}&code=abc`))).status).toBe(400); // state is single use
+    expect((await p.fetch(req(`/auth/callback?state=${state}&code=abc`))).status).toBe(400); // no state cookie: not the browser that started it
   });
 });
 
@@ -340,8 +384,8 @@ describe("status, models and daily usage", () => {
       allowedLogins: ["someone-else"],
       fetchImpl: (async (input: RequestInfo | URL) => new Response(JSON.stringify(String(input).includes("access_token") ? { access_token: "t" } : ME))) as typeof fetch,
     });
-    const state = new URL((await p.fetch(req("/auth/github"))).headers.get("location") ?? "").searchParams.get("state");
-    const res = await p.fetch(req(`/auth/callback?state=${state}&code=x`));
+    const { state, cookie } = await startOauth(p);
+    const res = await p.fetch(req(`/auth/callback?state=${state}&code=x`, { cookie }));
     expect(res.status).toBe(403);
     expect(res.headers.get("content-type")).toContain("text/html");
     const page = await res.text();
