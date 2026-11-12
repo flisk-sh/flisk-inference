@@ -12,6 +12,9 @@ export interface PortalOptions {
   upstream?: (path: string, init: RequestInit) => Promise<Response>; // replaces the HTTP forward (Workers AI)
   store: Store;                       // users, hashed keys, usage, cookie secret
   dailyLimit?: number;                // model requests per UTC day across all keys; missing: no cap
+  // Workers AI neurons per UTC day across all keys, priced per token; missing: no cap. The account's free allowance
+  // (10,000 neurons a day) is shared with other Workers, so a request cap alone is not enough: one long prompt costs ten short ones.
+  dailyNeurons?: { budget: number; perInputToken: number; perOutputToken: number };
   beta?: boolean;                     // the console says the service is in beta
   maxOutputTokens?: number;           // shown in the console; the upstream enforces it
   allowedModels?: string[];           // empty or missing: any model
@@ -29,7 +32,7 @@ export interface PortalOptions {
 interface User { id: string; login: string; name: string; avatar: string; created: string }
 interface Day { requests: number; input: number; output: number }
 interface Key { daily?: Record<string, Day>; id: string; userId: string; name: string; hash: string; prefix: string; last4: string; created: string; lastUsed: string | null; requests: number; input: number; output: number; revoked: boolean }
-export interface Db { users: Record<string, User>; keys: Key[]; total?: Record<string, number> }
+export interface Db { users: Record<string, User>; keys: Key[]; total?: Record<string, number>; neurons?: Record<string, number> }
 export interface Store { load(): Promise<Db>; save(db: Db): Promise<void>; secret(): Promise<string> }
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -211,7 +214,7 @@ export function createPortal(opts: PortalOptions) {
         });
         const date = new Date().toISOString().slice(0, 10);
         // `today` is everyone's requests today: the daily limit is shared, so this is what is left for this user too.
-        return json(200, { totals: { requests: sum("requests"), input: sum("input"), output: sum("output") }, keys, daily, today: { date, used: db.total?.[date] ?? 0, limit: opts.dailyLimit ?? null } });
+        return json(200, { totals: { requests: sum("requests"), input: sum("input"), output: sum("output") }, keys, daily, today: { date, used: db.total?.[date] ?? 0, limit: opts.dailyLimit ?? null, ...(opts.dailyNeurons ? { neurons: db.neurons?.[date] ?? 0, neuronBudget: opts.dailyNeurons.budget } : {}) } });
       }
       return json(404, { error: "not found" });
     }
@@ -239,6 +242,14 @@ export function createPortal(opts: PortalOptions) {
         if (parsed.stream) return json(400, { error: { message: "streaming is not supported" } });
         if (opts.allowedModels?.length && !opts.allowedModels.includes(String(parsed.model))) return json(400, { error: { message: `model must be one of: ${opts.allowedModels.join(", ")}` } });
         body = JSON.stringify(parsed);
+        if (opts.dailyNeurons) {
+          // Refuse before the call when this one could cross the budget: about 4 characters a token in, the full output cap out.
+          const n = opts.dailyNeurons;
+          const outCap = Math.min(Number(parsed.max_tokens) || (opts.maxOutputTokens ?? 1024), opts.maxOutputTokens ?? 1024);
+          const worst = Math.ceil(body.length / 4) * n.perInputToken + outCap * n.perOutputToken;
+          if ((db.neurons?.[today] ?? 0) + worst > n.budget)
+            return json(429, { error: { message: "the free beta's shared daily model budget is used up; it resets at 00:00 UTC" } });
+        }
       }
       const up = await upstream(path, { method: req.method, headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(120_000) });
       const text = await up.text();
@@ -259,6 +270,12 @@ export function createPortal(opts: PortalOptions) {
           k.lastUsed = new Date().toISOString();
         }
         (fresh.total ??= {})[today] = (fresh.total[today] ?? 0) + 1;
+        if (opts.dailyNeurons) {
+          const spent = (usage?.prompt_tokens ?? 0) * opts.dailyNeurons.perInputToken + (usage?.completion_tokens ?? 0) * opts.dailyNeurons.perOutputToken;
+          (fresh.neurons ??= {})[today] = Math.round((fresh.neurons[today] ?? 0) + spent);
+          // Keep a week: the row is rewritten on every call, so old days would only make it longer.
+          for (const d of Object.keys(fresh.neurons)) if (d < new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)) delete fresh.neurons[d];
+        }
         await opts.store.save(fresh);
       }
       return new Response(text, { status: up.status, headers: { "content-type": up.headers.get("content-type") ?? "application/json" } });
