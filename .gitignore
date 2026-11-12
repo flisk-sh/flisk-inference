@@ -12,3 +12,5 @@ services/platform/
 data/
 # Wrangler local cache (holds the Cloudflare account name)
 .wrangler/
+# Local secrets that `wrangler dev` reads (SESSION_SECRET, GITHUB_CLIENT_SECRET)
+.dev.vars*

@@ -80,7 +80,9 @@ export function createPortal(opts: PortalOptions) {
     }
   })();
 
-  const states = new Map<string, number>(); // OAuth state -> expiry
+  // The sign-in state is not kept here: GitHub's callback can reach a different Worker instance than /auth/github did.
+  // It travels in a signed, short-lived cookie (oauthCookie below) that any instance can check.
+  // The rate limit below is still counted per instance (see README: best-effort).
   const rate = new Map<string, number[]>();
   let statusCache: { at: number; ok: boolean } | undefined;
 
@@ -101,6 +103,25 @@ export function createPortal(opts: PortalOptions) {
     try {
       const s = JSON.parse(Buffer.from(p, "base64url").toString()) as { uid: string; exp: number };
       return s.exp > Date.now() ? (db.users[s.uid] ?? null) : null;
+    } catch { return null; }
+  }
+  const OAUTH_MINUTES = 10;
+  const oauthCookie = (state: string) => {
+    const p = b64({ state, exp: Date.now() + OAUTH_MINUTES * 60_000 });
+    return `fi_oauth=${p}.${sign(p)}; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=${OAUTH_MINUTES * 60}${secure ? "; Secure" : ""}`;
+  };
+  const clearOauthCookie = `fi_oauth=; Max-Age=0; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+  // The state from the cookie, or null when it is missing, forged or older than OAUTH_MINUTES.
+  function oauthState(req: Request): string | null {
+    const m = /(?:^|;\s*)fi_oauth=([^;]+)/.exec(req.headers.get("cookie") ?? "");
+    if (!m) return null;
+    const [p, sig] = m[1].split(".");
+    if (!p || !sig) return null;
+    const want = Buffer.from(sign(p)), got = Buffer.from(sig);
+    if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
+    try {
+      const s = JSON.parse(Buffer.from(p, "base64url").toString()) as { state: string; exp: number };
+      return s.exp > Date.now() && typeof s.state === "string" ? s.state : null;
     } catch { return null; }
   }
   async function upsertUser(gh: GithubUser): Promise<string> {
@@ -150,23 +171,24 @@ export function createPortal(opts: PortalOptions) {
     if (path === "/auth/github") {
       if (!opts.github) return json(501, { error: "GitHub OAuth is not configured (set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)" });
       const state = randomBytes(16).toString("hex");
-      states.set(state, Date.now() + 600_000);
       const q = new URLSearchParams({ client_id: opts.github.clientId, redirect_uri: `${opts.publicUrl}/auth/callback`, state });
-      return redirect(`https://github.com/login/oauth/authorize?${q}`);
+      return redirect(`https://github.com/login/oauth/authorize?${q}`, { "set-cookie": oauthCookie(state) });
     }
     if (path === "/auth/callback") {
       const state = url.searchParams.get("state"), code = url.searchParams.get("code");
-      const expiry = state ? states.get(state) : undefined;
+      const expected = oauthState(req);
       const signInFailed = (why: string) => infoPage(opts.name ?? "Portal", "Sign-in did not finish", `${why} Nothing was saved; try again.`, ["Sign in with GitHub", "/auth/github"], 400);
-      if (!opts.github || !state || !code || !expiry || expiry < Date.now()) return signInFailed("This sign-in link expired or was already used, for example after going back in the browser.");
-      states.delete(state);
+      if (!opts.github || !state || !code || !expected || expected !== state) return signInFailed("This sign-in link expired or was already used, for example after going back in the browser.");
       const tok = (await (await doFetch("https://github.com/login/oauth/access_token", { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify({ client_id: opts.github.clientId, client_secret: opts.github.clientSecret, code }) })).json()) as { access_token?: string };
       if (!tok.access_token) return signInFailed("GitHub did not confirm the sign-in.");
       const gh = (await (await doFetch("https://api.github.com/user", { headers: { authorization: `Bearer ${tok.access_token}`, "user-agent": "flisk-portal" } })).json()) as GithubUser;
       if (!gh.id || !gh.login) return signInFailed("We could not read your GitHub profile.");
       if (opts.allowedLogins?.length && !opts.allowedLogins.some((l) => l.toLowerCase() === String(gh.login).toLowerCase()))
         return infoPage(opts.name ?? "Portal", "Private preview", `@${gh.login} is not on the list yet. ${opts.name ?? "Portal"} is open to a few people while it is tested.`, ["Back to the site", "/"], 403);
-      return redirect("/?section=keys", { "set-cookie": sessionCookie(await upsertUser(gh)) });
+      const headers = new Headers({ location: "/?section=keys" });
+      headers.append("set-cookie", sessionCookie(await upsertUser(gh)));
+      headers.append("set-cookie", clearOauthCookie);
+      return new Response(null, { status: 302, headers });
     }
     if (path === "/auth/dev") {
       if (!opts.devLogin) return json(403, { error: "dev login is off" });
