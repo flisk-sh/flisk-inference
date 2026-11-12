@@ -259,6 +259,29 @@ describe("beta limits", () => {
     expect(((await over.json()) as { error: { message: string } }).error.message).toContain("daily limit");
     expect(upstreamCalls).toHaveLength(2);
   });
+  it("stops model calls at the shared daily neuron budget, priced from the upstream's token counts", async () => {
+    // Each fake call reports 10 tokens in and 5 out: 10*2 + 5*4 = 40 neurons; the third would pass 90 (80 + its worst case of 18).
+    const p = make({ dailyNeurons: { budget: 90, perInputToken: 2, perOutputToken: 4 }, maxOutputTokens: 1 });
+    const cookie = await login(p);
+    const { key } = await newKey(p, cookie);
+    expect((await p.fetch(chat(key))).status).toBe(200);
+    expect((await p.fetch(chat(key))).status).toBe(200);
+    const over = await p.fetch(chat(key));
+    expect(over.status).toBe(429);
+    expect(((await over.json()) as { error: { message: string } }).error.message).toContain("daily model budget");
+    expect(upstreamCalls).toHaveLength(2);
+    const u = (await (await p.fetch(req("/api/usage", { cookie }))).json()) as { today: { neurons: number; neuronBudget: number } };
+    expect(u.today).toMatchObject({ neurons: 80, neuronBudget: 90 });
+  });
+  it("refuses a prompt that alone could cross the neuron budget, before calling the model", async () => {
+    const p = make({ dailyNeurons: { budget: 1000, perInputToken: 1, perOutputToken: 0 } });
+    const cookie = await login(p);
+    const { key } = await newKey(p, cookie);
+    const long = { model: "m", messages: [{ role: "user", content: "x".repeat(8000) }] };
+    expect((await p.fetch(chat(key, long))).status).toBe(429);
+    expect(upstreamCalls).toHaveLength(0);
+    expect((await p.fetch(chat(key))).status).toBe(200);
+  });
   it("reports today's shared use against the daily limit in /api/usage", async () => {
     const p = make({ dailyLimit: 5 });
     const cookie = await login(p);
