@@ -10,6 +10,8 @@ PUBLIC_URL = "https://inference.flisk.si"
 PORTAL_NAME = "Flisk Inference"
 MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
 PUBLIC_MODEL = "flisk-wolf"
+# The same model without the Flisk config rules, for general chat (chat.flisk.si). Shares the daily limits.
+CHAT_MODEL = "flisk-wolf-chat"
 # Shared by every key: keeps the beta inside the Workers AI free daily allowance.
 DAILY_LIMIT = "100"
 # Workers AI neurons a day, all keys (about 80 for a short call, up to ~1,100 for a 64 KB prompt). The account's free
