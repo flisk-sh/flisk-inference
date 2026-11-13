@@ -37,6 +37,17 @@ describe("workersAiUpstream", () => {
     const json = (await (await parsed("/v1/chat/completions", post({ messages: [{ role: "user", content: "x" }] }))).json()) as { choices: Array<{ message: { content: unknown } }> };
     expect(json.choices[0].message.content).toBe('{\n  "appName": "x"\n}');
   });
+  it("serves flisk-wolf-chat from the same model without the Flisk rules, and lists both names", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const two = workersAiUpstream({ ai: { run: async (_m, input) => { seen.push(input); return { response: "hello" }; } }, model: "m", publicModel: "flisk-wolf", prelude: [{ role: "system", content: "rules" }], others: { "flisk-wolf-chat": [] } });
+    const json = (await (await two("/v1/chat/completions", post({ model: "flisk-wolf-chat", messages: [{ role: "user", content: "hi" }] }))).json()) as { model: string };
+    expect(json.model).toBe("flisk-wolf-chat");
+    expect(seen[0].messages).toEqual([{ role: "user", content: "hi" }]);
+    await two("/v1/chat/completions", post({ model: "toString", messages: [{ role: "user", content: "hi" }] }));
+    expect(seen[1].messages).toEqual([{ role: "system", content: "rules" }, { role: "user", content: "hi" }]);
+    const list = (await (await two("/v1/models", { method: "GET" })).json()) as { data: Array<{ id: string }> };
+    expect(list.data.map((m) => m.id).sort()).toEqual(["flisk-wolf", "flisk-wolf-chat"]);
+  });
   it("lists only the public model name", async () => {
     expect(((await (await up("/v1/models", {})).json()) as { data: Array<{ id: string }> }).data.map((d) => d.id)).toEqual(["flisk-wolf"]);
   });

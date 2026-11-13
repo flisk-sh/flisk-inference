@@ -6,7 +6,7 @@ import { type AiBinding, parseModelfile, workersAiUpstream } from "./workers-ai"
 
 interface Env {
   DB: D1; AI: AiBinding; ASSETS: { fetch(req: Request): Promise<Response> };
-  PUBLIC_URL: string; MODEL: string; PUBLIC_MODEL: string; DAILY_LIMIT?: string; DAILY_NEURONS?: string; PORTAL_NAME?: string; ALLOWED_LOGINS?: string;
+  PUBLIC_URL: string; MODEL: string; PUBLIC_MODEL: string; CHAT_MODEL?: string; DAILY_LIMIT?: string; DAILY_NEURONS?: string; PORTAL_NAME?: string; ALLOWED_LOGINS?: string;
   GITHUB_CLIENT_ID?: string; GITHUB_CLIENT_SECRET?: string; SESSION_SECRET: string;
 }
 
@@ -17,8 +17,8 @@ export default {
       name: env.PORTAL_NAME ?? "Flisk Inference",
       publicUrl: env.PUBLIC_URL,
       store: d1Store(env.DB, () => env.SESSION_SECRET),
-      upstream: workersAiUpstream({ ai: env.AI, model: env.MODEL, publicModel: env.PUBLIC_MODEL, prelude: parseModelfile(modelfile) }),
-      allowedModels: [env.PUBLIC_MODEL],
+      upstream: workersAiUpstream({ ai: env.AI, model: env.MODEL, publicModel: env.PUBLIC_MODEL, prelude: parseModelfile(modelfile), others: env.CHAT_MODEL ? { [env.CHAT_MODEL]: [] } : {} }),
+      allowedModels: [env.PUBLIC_MODEL, ...(env.CHAT_MODEL ? [env.CHAT_MODEL] : [])],
       github: env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET } : undefined,
       allowedLogins: (env.ALLOWED_LOGINS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       dailyLimit: Number(env.DAILY_LIMIT) || undefined,
