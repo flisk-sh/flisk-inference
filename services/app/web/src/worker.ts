@@ -1,6 +1,7 @@
 // Cloudflare entry: the portal on a Worker, users and keys in D1, the model on Workers AI. Deploy: see DEPLOY.md.
 import modelfile from "../../../../deploy/Modelfile";
 import { type D1, d1Store } from "./d1-store";
+import { catalogResponse } from "./catalog";
 import { createPortal } from "./portal";
 import { type AiBinding, parseModelfile, workersAiUpstream } from "./workers-ai";
 
@@ -13,6 +14,8 @@ interface Env {
 let portal: ReturnType<typeof createPortal> | undefined;
 export default {
   fetch(req: Request, env: Env): Promise<Response> {
+    // The public model list for Flisk apps: no key needed, nothing secret in it.
+    if (req.method === "GET" && new URL(req.url).pathname === "/v1/catalog") return Promise.resolve(catalogResponse());
     portal ??= createPortal({
       name: env.PORTAL_NAME ?? "Flisk Inference",
       publicUrl: env.PUBLIC_URL,
