@@ -322,7 +322,7 @@ function limitsCard(today){const L=cfg.limits||{};const used=today?today.used:0,
   h("div",{class:"chart-head"},h("b",{},"Free beta limits")),
   lim?h("div",{style:"margin-bottom:14px"},h("div",{style:"display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px"},h("span",{},"Shared by everyone today"),h("b",{class:"mono"},fmt(used)+" / "+fmt(lim)+" requests")),
    h("div",{class:"meter",style:"height:8px"},h("b",{style:`width:${pct}%;background:${pct>=90?"var(--red)":pct>=60?"var(--amber)":"var(--acc)"}`})),
-   h("small",{style:"color:var(--faint)"},"Resets at 00:00 UTC.")):null,
+   h("small",{style:"color:var(--faint)"},"Resets at 00:00 UTC.",cfg.sponsorUrl?" Sponsors pay for these free calls. ":"",cfg.sponsorUrl?h("a",{href:cfg.sponsorUrl,target:"_blank",rel:"noopener"},"Become a sponsor"):null)):null,
   h("table",{},h("tbody",{},...[[fmt(L.perMinute||30)+" / minute","per API key"],[lim?fmt(lim)+" / day":"no daily cap","shared across all users"],[fmt(L.maxOutputTokens||1024)+" tokens","output per request"],[fmt(L.maxKeys||10)+" keys","active per account"],["No streaming","stream: true returns 400"]].map(([a,b])=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap"},a),h("td",{style:"color:var(--mut)"},b))))))}
 
 /* ---------- landing ---------- */

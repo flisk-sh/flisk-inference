@@ -12,6 +12,7 @@ export interface PortalOptions {
   upstream?: (path: string, init: RequestInit) => Promise<Response>; // replaces the HTTP forward (Workers AI)
   store: Store;                       // users, hashed keys, usage, cookie secret
   dailyLimit?: number;                // model requests per UTC day across all keys; missing: no cap
+  sponsorUrl?: string;                // where to sponsor the free tier; added to the daily-limit errors and shown in the console
   // Workers AI neurons per UTC day across all keys, priced per token; missing: no cap. The account's free allowance
   // (10,000 neurons a day) is shared with other Workers, so a request cap alone is not enough: one long prompt costs ten short ones.
   dailyNeurons?: { budget: number; perInputToken: number; perOutputToken: number };
@@ -172,7 +173,7 @@ export function createPortal(opts: PortalOptions) {
       }
       return json(200, { ok: statusCache.ok, models: opts.allowedModels ?? [], checkedAt: new Date(statusCache.at).toISOString() });
     }
-    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [], beta: Boolean(opts.beta), dailyLimit: opts.dailyLimit ?? null,
+    if (path === "/api/config") return json(200, { name: opts.name ?? "Portal", oauth: Boolean(opts.github), dev: Boolean(opts.devLogin), base: opts.publicUrl, models: opts.allowedModels ?? [], beta: Boolean(opts.beta), dailyLimit: opts.dailyLimit ?? null, sponsorUrl: opts.sponsorUrl ?? null,
       limits: { perMinute: ratePerMinute, perDay: opts.dailyLimit ?? null, maxKeys: maxActiveKeys, maxOutputTokens: opts.maxOutputTokens ?? 1024, maxBodyKb: Math.round(maxBody / 1024) } });
 
     // ---- sign-in
@@ -260,8 +261,9 @@ export function createPortal(opts: PortalOptions) {
       if (recent.length >= ratePerMinute) return json(429, { error: { message: `rate limit: ${ratePerMinute} requests per minute` } });
       rate.set(key.id, [...recent, now]);
       const today = new Date().toISOString().slice(0, 10);
+      const sponsor = opts.sponsorUrl ? `. Sponsors pay for these free calls: ${opts.sponsorUrl}` : "";
       if (opts.dailyLimit && (db.total?.[today] ?? 0) >= opts.dailyLimit)
-        return json(429, { error: { message: `the free beta's shared daily limit of ${opts.dailyLimit} requests is used up; it resets at 00:00 UTC` } });
+        return json(429, { error: { message: `the free beta's shared daily limit of ${opts.dailyLimit} requests is used up; it resets at 00:00 UTC${sponsor}` } });
 
       let body: string | undefined;
       if (req.method === "POST") {
@@ -275,7 +277,7 @@ export function createPortal(opts: PortalOptions) {
           const outCap = Math.min(Number(parsed.max_tokens) || (opts.maxOutputTokens ?? 1024), opts.maxOutputTokens ?? 1024);
           const worst = Math.ceil(body.length / 4) * n.perInputToken + outCap * n.perOutputToken;
           if ((db.neurons?.[today] ?? 0) + worst > n.budget)
-            return json(429, { error: { message: "the free beta's shared daily model budget is used up; it resets at 00:00 UTC" } });
+            return json(429, { error: { message: `the free beta's shared daily model budget is used up; it resets at 00:00 UTC${sponsor}` } });
         }
       }
       const up = await upstream(path, { method: req.method, headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(120_000) });

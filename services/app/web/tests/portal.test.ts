@@ -303,6 +303,22 @@ describe("beta limits", () => {
     expect(((await over.json()) as { error: { message: string } }).error.message).toContain("daily limit");
     expect(upstreamCalls).toHaveLength(2);
   });
+  it("adds the sponsor link to both daily-limit errors, and to the config, only when one is set", async () => {
+    const p = make({ dailyLimit: 1, sponsorUrl: "https://example.test/sponsor" });
+    const { key } = await newKey(p, await login(p));
+    expect((await p.fetch(chat(key))).status).toBe(200);
+    const over = await p.fetch(chat(key));
+    expect(((await over.json()) as { error: { message: string } }).error.message).toContain("Sponsors pay for these free calls: https://example.test/sponsor");
+    expect(((await (await p.fetch(new Request("http://x/api/config"))).json()) as { sponsorUrl: string }).sponsorUrl).toBe("https://example.test/sponsor");
+    const budget = make({ dailyNeurons: { budget: 1, perInputToken: 2, perOutputToken: 4 }, sponsorUrl: "https://example.test/sponsor" });
+    const b = await newKey(budget, await login(budget));
+    expect(((await (await budget.fetch(chat(b.key))).json()) as { error: { message: string } }).error.message).toContain("https://example.test/sponsor");
+    const plain = make({ dailyLimit: 1 });
+    const k = await newKey(plain, await login(plain));
+    await plain.fetch(chat(k.key));
+    expect(((await (await plain.fetch(chat(k.key))).json()) as { error: { message: string } }).error.message).not.toContain("Sponsors");
+    expect(((await (await plain.fetch(new Request("http://x/api/config"))).json()) as { sponsorUrl: null }).sponsorUrl).toBeNull();
+  });
   it("stops model calls at the shared daily neuron budget, priced from the upstream's token counts", async () => {
     // Each fake call reports 10 tokens in and 5 out: 10*2 + 5*4 = 40 neurons; the third would pass 90 (80 + its worst case of 18).
     const p = make({ dailyNeurons: { budget: 90, perInputToken: 2, perOutputToken: 4 }, maxOutputTokens: 1 });

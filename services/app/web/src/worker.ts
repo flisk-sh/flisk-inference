@@ -7,7 +7,7 @@ import { type AiBinding, parseModelfile, workersAiUpstream } from "./workers-ai"
 
 interface Env {
   DB: D1; AI: AiBinding; ASSETS: { fetch(req: Request): Promise<Response> };
-  PUBLIC_URL: string; MODEL: string; PUBLIC_MODEL: string; CHAT_MODEL?: string; DAILY_LIMIT?: string; DAILY_NEURONS?: string; PORTAL_NAME?: string; ALLOWED_LOGINS?: string;
+  PUBLIC_URL: string; MODEL: string; PUBLIC_MODEL: string; CHAT_MODEL?: string; DAILY_LIMIT?: string; SPONSOR_URL?: string; DAILY_NEURONS?: string; PORTAL_NAME?: string; ALLOWED_LOGINS?: string;
   GITHUB_CLIENT_ID?: string; GITHUB_CLIENT_SECRET?: string; SESSION_SECRET: string;
 }
 
@@ -25,6 +25,7 @@ export default {
       github: env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET } : undefined,
       allowedLogins: (env.ALLOWED_LOGINS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       dailyLimit: Number(env.DAILY_LIMIT) || undefined,
+      sponsorUrl: env.SPONSOR_URL || undefined,
       // Qwen2.5-Coder 32B on Workers AI: $0.66 per million tokens in and $1.00 out, at $0.011 per 1,000 neurons.
       dailyNeurons: Number(env.DAILY_NEURONS) ? { budget: Number(env.DAILY_NEURONS), perInputToken: 0.06, perOutputToken: 0.0909 } : undefined,
       beta: true,
