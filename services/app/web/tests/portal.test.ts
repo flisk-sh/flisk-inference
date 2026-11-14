@@ -50,6 +50,23 @@ const chat = (key: string, body: unknown = { model: "m", messages: [] }) =>
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "portal-")); });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
+describe("visit counting", () => {
+  it("serves the console with the Flisk Analytics script once, before the bar, and sends no policy that would block its beacon", async () => {
+    const res = await make().fetch(req("/"));
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    const tag = '<script defer data-domain="inference.flisk.si" src="https://flisk.sh/a.js"></script>';
+    expect(html.split(tag)).toHaveLength(2);
+    expect(html.indexOf(tag)).toBeLessThan(html.indexOf("https://flisk.si/assets/bar.js"));
+    // a policy, if one is ever added, has to let the script load and the beacon leave
+    const csp = res.headers.get("content-security-policy");
+    if (csp) {
+      expect(csp).toMatch(/script-src [^;]*https:\/\/flisk\.sh/);
+      expect(csp).toMatch(/connect-src [^;]*https:\/\/analytics\.flisk\.si/);
+    }
+  });
+});
+
 describe("sign-in", () => {
   it("refuses the console API without a session, but answers who-am-I with null so browsers log no error", async () => {
     const p = make();
