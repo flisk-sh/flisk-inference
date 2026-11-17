@@ -1,0 +1,30 @@
+{
+  "mode": "report",
+  "guards": {
+    "secret-scan": "report",
+    "pinned-actions": "report",
+    "workflow-permissions": "report",
+    "dead-links": "report",
+    "done-without-green": "report",
+    "five-second-test": "report",
+    "north-star": "report"
+  },
+  "five_second": {
+    "pages": [],
+    "rendered": {
+      "result": "bench/five-second.json",
+      "max_age_days": 30
+    }
+  },
+  "north_star": {
+    "metric": "seconds from GitHub sign-in to the first successful completion",
+    "baseline": "first measured run, 2026-11-17",
+    "target": {
+      "ratio": 2,
+      "better": "lower"
+    },
+    "result": "docs/north-star/result.json",
+    "evidence": "docs/north-star/README.md",
+    "max_age_days": 30
+  }
+}
