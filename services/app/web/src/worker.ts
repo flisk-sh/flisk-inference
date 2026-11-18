@@ -1,6 +1,7 @@
 // Cloudflare entry: the portal on a Worker, users and keys in D1, the model on Workers AI. Deploy: see DEPLOY.md.
 import modelfile from "../../../../deploy/Modelfile";
 import { type D1, d1Store } from "./d1-store";
+import { browserModelsResponse } from "./browser-models";
 import { catalogResponse } from "./catalog";
 import { openaiUpstream } from "./openai";
 import { createPortal } from "./portal";
@@ -54,6 +55,8 @@ function handle(req: Request, env: Env): Promise<Response> {
   {
     // The public model list for Flisk apps: no key needed, nothing secret in it.
     if (req.method === "GET" && new URL(req.url).pathname === "/v1/catalog") return Promise.resolve(catalogResponse());
+    // Models that run in the visitor's tab (see browser-models.ts): public, and not in the catalog every picker draws from.
+    if (req.method === "GET" && new URL(req.url).pathname === "/v1/browser-models") return Promise.resolve(browserModelsResponse());
     const [perInputToken, perOutputToken] = RATES[env.MODEL] ?? DEAREST;
     // The chat model on its own base model: Qwen3 answers at once with "/no_think" (its thinking would use up the answer).
     const chatBase = env.CHAT_MODEL && env.CHAT_BASE_MODEL ? env.CHAT_BASE_MODEL : undefined;
