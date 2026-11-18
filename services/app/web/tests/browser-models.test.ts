@@ -1,6 +1,9 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { BROWSER_ENGINE, BROWSER_MODELS, browserModelsResponse } from "../src/browser-models";
 import { CATALOG } from "../src/catalog";
+
+// wrangler.toml loads the Modelfile as text; Bun cannot parse it as a module.
+mock.module("../../../../deploy/Modelfile", () => ({ default: "FROM test" }));
 
 test("every browser model is complete, has one id, and exactly one default per task", () => {
   const ids = new Set<string>();
