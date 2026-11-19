@@ -79,8 +79,9 @@ function infoPage(name: string, title: string, text: string, link: [string, stri
 <style>:root{color-scheme:light dark}body{margin:0;font:16px/1.55 system-ui,sans-serif;background:#eeece5;color:#121212}main{max-width:34rem;margin:14vh auto;padding:28px;border:1px solid rgba(18,18,18,.82);background:#f6f4ee}
 small{font:600 11px ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:#6a6a70}h1{font:800 34px/1.05 Georgia,serif;letter-spacing:-.02em;margin:10px 0 12px}p{color:#3d3d42;margin:0 0 22px}
 a{display:inline-block;background:#22c55e;color:#04120a;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;padding:12px 20px;text-decoration:none}
-@media(prefers-color-scheme:dark){body{background:#0b0b0d;color:#ececf1}main{background:#111114;border-color:rgba(255,255,255,.62)}p{color:rgba(236,236,241,.68)}}</style>
-<main><small>${esc(name)} · ${status}</small><h1>${esc(title)}</h1><p>${esc(text)}</p><a href="${esc(link[1])}">${esc(link[0])}</a></main></html>`;
+.skip-link{position:absolute;left:-9999px;top:0;z-index:100;background:#f6f4ee;color:#121212;border:1px solid rgba(18,18,18,.82)}.skip-link:focus{left:12px;top:12px;outline:2px solid #22c55e;outline-offset:2px}
+@media(prefers-color-scheme:dark){body{background:#0b0b0d;color:#ececf1}main{background:#111114;border-color:rgba(255,255,255,.62)}p{color:rgba(236,236,241,.68)}.skip-link{background:#111114;color:#ececf1;border-color:rgba(255,255,255,.62)}}</style>
+<a class="skip-link" href="#main">Skip to content</a><main id="main"><small>${esc(name)} · ${status}</small><h1>${esc(title)}</h1><p>${esc(text)}</p><a href="${esc(link[1])}">${esc(link[0])}</a></main></html>`;
   return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }
 const wantsHtml = (req: Request) => req.method === "GET" && (req.headers.get("accept") ?? "").includes("text/html");
