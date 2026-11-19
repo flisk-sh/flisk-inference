@@ -30,6 +30,9 @@ jobs:
       - name: No credentials in tracked files
         working-directory: .
         run: bash scripts/check-secrets.sh
+      - name: Package metadata
+        working-directory: .
+        run: node scripts/check-package-metadata.mjs
       - run: bun install
       - run: bun run typecheck
       - run: bun test
