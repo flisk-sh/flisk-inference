@@ -299,6 +299,18 @@ describe("pages for people", () => {
     expect(sitemap.headers.get("content-type")).toContain("application/xml");
     expect(await sitemap.text()).toContain(`<loc>${BASE}/</loc>`);
   });
+  it("publishes a security.txt with a contact and a future expiry", async () => {
+    const p = make();
+    const res = await p.fetch(req("/.well-known/security.txt"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const text = await res.text();
+    expect(text).toContain("Contact: https://github.com/flisk-sh/flisk-inference/security/advisories/new");
+    expect(text).toContain(`Canonical: ${BASE}/.well-known/security.txt`);
+    const expires = text.match(/^Expires: (\S+)$/m)?.[1];
+    expect(expires).toBeTruthy();
+    expect(Date.parse(expires!)).toBeGreaterThan(Date.now() + 180 * 24 * 60 * 60 * 1000);
+  });
   it("shows a 404 page to a browser and JSON to a program", async () => {
     const p = make();
     const page = await p.fetch(req("/nope", { headers: { accept: "text/html,application/xhtml+xml" } }));
