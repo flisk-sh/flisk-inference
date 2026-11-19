@@ -69,6 +69,13 @@ const SESSION_DAYS = 7;
 
 // The site icons in public/: the canonical mark from flisk-sh/flisk-emoji (apps/flisk-inference.svg) and PNGs made from it.
 export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]; // og.png: the 1200x630 share card, rendered from og.svg with rsvg-convert
+
+// RFC 9116 contact for security researchers, published at /.well-known/security.txt.
+export const securityTxt = (publicUrl: string) => `Contact: https://github.com/flisk-sh/flisk-inference/security/advisories/new
+Expires: 2027-06-01T00:00:00Z
+Preferred-Languages: en
+Canonical: ${publicUrl}/.well-known/security.txt
+`;
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -177,6 +184,8 @@ export function createPortal(opts: PortalOptions) {
     // Search engines: crawl the page, keep off the API and sign-in routes, and find the sitemap.
     if (read && path === "/robots.txt")
       return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8" } }));
+    if (read && path === "/.well-known/security.txt")
+      return bodyFor(new Response(securityTxt(opts.publicUrl), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=86400" } }));
     if (read && path === "/sitemap.xml")
       return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8" } }));
     if (read && (path === "/" || path === "/index.html"))
