@@ -2,6 +2,14 @@
   "name": "flisk-inference",
   "version": "1.0.0",
   "private": true,
+  "description": "Hosted model inference portal for the Flisk platform.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flisk-sh/flisk-inference.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "workspaces": ["services/*/*"]
 }
