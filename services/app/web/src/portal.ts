@@ -179,7 +179,12 @@ export function createPortal(opts: PortalOptions) {
       return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8" } }));
     if (read && path === "/sitemap.xml")
       return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8" } }));
-    if (read && (path === "/" || path === "/index.html"))
+    if (read && path === "/index.html") {
+      const target = new URL("/", opts.publicUrl);
+      target.search = new URL(req.url).search;
+      return bodyFor(new Response(null, { status: 301, headers: { location: target.href } }));
+    }
+    if (read && path === "/")
       return bodyFor(new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } }));
     // The model picker: a small page that other *.flisk.si sites put in an iframe (frame-ancestors below), and the script that does it.
     if (read && opts.ownProviders && path === "/picker")
