@@ -69,7 +69,16 @@ const SESSION_DAYS = 7;
 
 // The site icons in public/: the canonical mark from flisk-sh/flisk-emoji (apps/flisk-inference.svg) and PNGs made from it.
 export const ICONS = ["/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og.png"]; // og.png: the 1200x630 share card, rendered from og.svg with rsvg-convert
+
+// RFC 9116 contact for security researchers, published at /.well-known/security.txt.
+export const securityTxt = (publicUrl: string) => `Contact: https://github.com/flisk-sh/flisk-inference/security/advisories/new
+Expires: 2027-06-01T00:00:00Z
+Preferred-Languages: en
+Canonical: ${publicUrl}/.well-known/security.txt
+`;
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
+// robots.txt and sitemap.xml change only when the site is redeployed; crawlers should not re-run the Worker for them.
+const CRAWL_CACHE = { "cache-control": "public, max-age=86400" };
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 // A small page in the site's style for the few answers a person sees outside the app: not found, sign-in failed, not invited.
@@ -79,8 +88,9 @@ function infoPage(name: string, title: string, text: string, link: [string, stri
 <style>:root{color-scheme:light dark}body{margin:0;font:16px/1.55 system-ui,sans-serif;background:#eeece5;color:#121212}main{max-width:34rem;margin:14vh auto;padding:28px;border:1px solid rgba(18,18,18,.82);background:#f6f4ee}
 small{font:600 11px ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:#6a6a70}h1{font:800 34px/1.05 Georgia,serif;letter-spacing:-.02em;margin:10px 0 12px}p{color:#3d3d42;margin:0 0 22px}
 a{display:inline-block;background:#22c55e;color:#04120a;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;padding:12px 20px;text-decoration:none}
-@media(prefers-color-scheme:dark){body{background:#0b0b0d;color:#ececf1}main{background:#111114;border-color:rgba(255,255,255,.62)}p{color:rgba(236,236,241,.68)}}</style>
-<main><small>${esc(name)} · ${status}</small><h1>${esc(title)}</h1><p>${esc(text)}</p><a href="${esc(link[1])}">${esc(link[0])}</a></main></html>`;
+.skip-link{position:absolute;left:-9999px;top:0;z-index:100;background:#f6f4ee;color:#121212;border:1px solid rgba(18,18,18,.82)}.skip-link:focus{left:12px;top:12px;outline:2px solid #22c55e;outline-offset:2px}
+@media(prefers-color-scheme:dark){body{background:#0b0b0d;color:#ececf1}main{background:#111114;border-color:rgba(255,255,255,.62)}p{color:rgba(236,236,241,.68)}.skip-link{background:#111114;color:#ececf1;border-color:rgba(255,255,255,.62)}}</style>
+<a class="skip-link" href="#main">Skip to content</a><main id="main"><small>${esc(name)} · ${status}</small><h1>${esc(title)}</h1><p>${esc(text)}</p><a href="${esc(link[1])}">${esc(link[0])}</a></main></html>`;
   return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }
 const wantsHtml = (req: Request) => req.method === "GET" && (req.headers.get("accept") ?? "").includes("text/html");
@@ -176,10 +186,17 @@ export function createPortal(opts: PortalOptions) {
     if (read && opts.asset && ICONS.includes(path)) return bodyFor(await opts.asset(path));
     // Search engines: crawl the page, keep off the API and sign-in routes, and find the sitemap.
     if (read && path === "/robots.txt")
-      return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8" } }));
+      return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8", ...CRAWL_CACHE } }));
+    if (read && path === "/.well-known/security.txt")
+      return bodyFor(new Response(securityTxt(opts.publicUrl), { headers: { "content-type": "text/plain; charset=utf-8", ...CRAWL_CACHE } }));
     if (read && path === "/sitemap.xml")
-      return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8" } }));
-    if (read && (path === "/" || path === "/index.html"))
+      return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8", ...CRAWL_CACHE } }));
+    if (read && path === "/index.html") {
+      const target = new URL("/", opts.publicUrl);
+      target.search = new URL(req.url).search;
+      return bodyFor(new Response(null, { status: 301, headers: { location: target.href } }));
+    }
+    if (read && path === "/")
       return bodyFor(new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } }));
     // The model picker: a small page that other *.flisk.si sites put in an iframe (frame-ancestors below), and the script that does it.
     if (read && opts.ownProviders && path === "/picker")

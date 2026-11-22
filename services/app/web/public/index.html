@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=JetBrains+Mono:wght@400;500;600&display=swap">
-<script defer data-domain="inference.flisk.si" src="https://flisk.sh/a.js"></script><script src="https://flisk.si/assets/bar.js" defer></script>
+<script defer data-domain="inference.flisk.si" src="https://flisk.sh/a.js"></script><script src="https://flisk.si/assets/bar.js" data-product="Inference" data-icon="flisk-inference" data-accent="#22c55e" data-siblings="Cilytics,Ranker" data-text="Free open beta inference for agents and apps." defer></script>
 <style>
 :root{--bg:#08080c;--bg2:#0d0d13;--panel:#111117;--panel2:#17171f;--ink:#ececf1;--mut:rgba(236,236,241,.68);--faint:rgba(236,236,241,.46);--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.18);
 --acc:#22c55e;--accink:#04120a;--acctext:#6ee7a0;--tint:rgba(34,197,94,.12);--blue:#38bdf8;--amber:#f59e0b;--red:#f43f5e;--glow:rgba(34,197,94,.08);--shadow:0 18px 50px rgba(0,0,0,.45);
@@ -27,6 +27,7 @@
 :root[data-theme=light]{--bg:#f6f6f4;--bg2:#efefec;--panel:#fff;--panel2:#f0f0ed;--ink:#16161a;--mut:#52525b;--faint:#71717a;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.22);--acctext:#15803d;--tint:rgba(34,197,94,.1);--glow:rgba(34,197,94,.1);--shadow:0 14px 40px rgba(0,0,0,.12)}
 *{box-sizing:border-box}html{color-scheme:dark}:root[data-theme=light]{color-scheme:light}
 body{margin:0;background:radial-gradient(70rem 32rem at 85% -12%,var(--glow),transparent 60%),var(--bg);color:var(--ink);font:15px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:10px 14px;background:var(--panel);color:var(--ink);border:1px solid var(--line2);border-radius:6px;font:600 13px var(--font)}.skip-link:focus{left:12px;top:12px;outline:2px solid var(--acc);outline-offset:2px}
 h1,h2,h3{margin:0;letter-spacing:-.02em;line-height:1.1}a{color:inherit}code,pre,.mono{font-family:var(--mono);font-size:12.5px}
 button{font:inherit;color:inherit;cursor:pointer}:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
@@ -158,6 +159,7 @@ main header h1{font-size:28px}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div id="root"><div class="wrap"><main>
 <div class="hero"><div><h1>A free AI model for your apps.</h1><p class="lead">Get a free key in one minute and call the model from any app, script or chatbot. It speaks the OpenAI API, so your existing code works. Free beta, limited capacity.</p></div></div>
 <section class="block" id="demos"><h2>See it work</h2><p class="sub">Five real runs: write a file, a one-shot job, fix a rejected file, ask the docs, and suggest fixes in CI.</p></section>
@@ -380,7 +382,7 @@ function shell(section,title,body){
    h("nav",{class:"nav"},...NAV.map(([k,l,i])=>h("a",{href:"?section="+k,class:section===k?"on":"","aria-current":section===k?"page":null,html:SVG[i]+"<span>"+l+"</span>"}))),
    h("div",{class:"foot"},h("div",{class:"who"},me&&me.avatar?h("img",{src:me.avatar,alt:"",width:30,height:30}):h("div",{class:"avatar"}),h("span",{},me?"@"+me.login:"Not signed in")),
     h("div",{style:"display:flex;gap:8px"},h("button",{class:"theme","aria-label":"Toggle theme",onclick:toggleTheme,html:SVG.moon}),me?h("a",{class:"btn sm",href:"/auth/logout"},"Sign out"):null))),
-  h("main",{},h("header",{},h("h1",{},title,cfg.beta?h("span",{class:"tag assess",style:"margin-left:10px;vertical-align:middle"},"Beta"):null),h("span",{class:"pill"},h("i",{class:"dot "+(status?(status.ok?"ok":"bad"):"")}),status?(status.ok?"Model online":"Model offline"):"…")),h("div",{class:"content"},body)))}
+  h("main",{id:"main"},h("header",{},h("h1",{},title,cfg.beta?h("span",{class:"tag assess",style:"margin-left:10px;vertical-align:middle"},"Beta"):null),h("span",{class:"pill"},h("i",{class:"dot "+(status?(status.ok?"ok":"bad"):"")}),status?(status.ok?"Model online":"Model offline"):"…")),h("div",{class:"content"},body)))}
 function betaNote(){return h("div",{class:"card",style:"border-color:var(--amber);margin-bottom:18px"},h("b",{},"Beta"),h("p",{style:"color:var(--mut);margin:4px 0 0"},"Free, with no card. Keys and usage may be reset before launch."))}
 function loginView(){
  const b=h("div",{class:"login-card"},h("div",{class:"card"},h("h2",{style:"font-size:22px;margin-bottom:8px"},"Sign in"),h("p",{style:"color:var(--mut)"},"Use your GitHub account to create API keys and see your usage. We only read your public login."),h("div",{class:"cta",id:"lb"})));
