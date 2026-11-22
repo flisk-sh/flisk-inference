@@ -77,6 +77,8 @@ Preferred-Languages: en
 Canonical: ${publicUrl}/.well-known/security.txt
 `;
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
+// robots.txt and sitemap.xml change only when the site is redeployed; crawlers should not re-run the Worker for them.
+const CRAWL_CACHE = { "cache-control": "public, max-age=86400" };
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 // A small page in the site's style for the few answers a person sees outside the app: not found, sign-in failed, not invited.
@@ -183,11 +185,11 @@ export function createPortal(opts: PortalOptions) {
     if (read && opts.asset && ICONS.includes(path)) return bodyFor(await opts.asset(path));
     // Search engines: crawl the page, keep off the API and sign-in routes, and find the sitemap.
     if (read && path === "/robots.txt")
-      return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8" } }));
+      return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8", ...CRAWL_CACHE } }));
     if (read && path === "/.well-known/security.txt")
-      return bodyFor(new Response(securityTxt(opts.publicUrl), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=86400" } }));
+      return bodyFor(new Response(securityTxt(opts.publicUrl), { headers: { "content-type": "text/plain; charset=utf-8", ...CRAWL_CACHE } }));
     if (read && path === "/sitemap.xml")
-      return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8" } }));
+      return bodyFor(new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${opts.publicUrl}/</loc></url></urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8", ...CRAWL_CACHE } }));
     if (read && (path === "/" || path === "/index.html"))
       return bodyFor(new Response(await opts.indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } }));
     // The model picker: a small page that other *.flisk.si sites put in an iframe (frame-ancestors below), and the script that does it.
