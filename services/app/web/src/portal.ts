@@ -7,6 +7,7 @@ import { openaiUpstream } from "./openai";
 import { meterStream, SSE_HEADERS, wholeAsChunks } from "./sse";
 import { open, PROVIDERS, seal } from "./providers";
 import { pickerHtml, PICKER_JS } from "./picker";
+import { anthropicError, messageAsEvents, type agentUpstream } from "./anthropic";
 import type { ChatMessage } from "./workers-ai";
 
 export interface GithubUser { id: number | string; login: string; name?: string | null; avatar_url?: string }
@@ -36,6 +37,8 @@ export interface PortalOptions {
   indexHtml: () => string | Promise<string>; // the landing page and console
   asset?: (path: string) => Response | Promise<Response>; // the icons in public/ (ICONS); missing: 404
   maxBody?: number;                   // bytes
+  // POST /v1/messages (Anthropic format, e.g. Claude Code): one vision + tool model, its own daily request limit and body size (screenshots).
+  agent?: { run: ReturnType<typeof agentUpstream>; dailyLimit: number; maxBody: number };
   ratePerMinute?: number;             // per API key
   maxActiveKeys?: number;             // per user
   allowedLogins?: string[];           // only these GitHub logins may sign in (case-insensitive); empty or missing: anyone
@@ -166,9 +169,9 @@ export function createPortal(opts: PortalOptions) {
     await opts.store.putUser({ id, login: gh.login, name: gh.name ?? gh.login, avatar: gh.avatar_url ?? "", created: new Date().toISOString() });
     return id;
   }
-  async function readJson(req: Request): Promise<Record<string, unknown>> {
+  async function readJson(req: Request, limit = maxBody): Promise<Record<string, unknown>> {
     const text = await req.text();
-    if (text.length > maxBody) throw Object.assign(new Error("body too large"), { status: 413 });
+    if (text.length > limit) throw Object.assign(new Error("body too large"), { status: 413 });
     return text ? (JSON.parse(text) as Record<string, unknown>) : {};
   }
   // A cross-site page cannot set a same-origin Origin header; SameSite=Lax cookies cover the rest.
@@ -312,10 +315,26 @@ export function createPortal(opts: PortalOptions) {
     // ---- /v1/*: API-key auth, metered, forwarded to the upstream
     if (path.startsWith("/v1/")) {
       const db = await opts.store.load();
-      const m = /^Bearer (.+)$/.exec(req.headers.get("authorization") ?? "");
+      const m = /^Bearer (.+)$/.exec(req.headers.get("authorization") ?? "") ?? (opts.agent ? /^(.+)$/.exec(req.headers.get("x-api-key") ?? "") : null);
       const key = m ? db.keys.find((k) => !k.revoked && k.hash === sha(m[1])) : undefined;
       if (!key) return json(401, { error: { message: "invalid or missing API key", type: "invalid_request_error" } });
       if (req.method !== "GET" && req.method !== "POST") return json(405, { error: { message: "method not allowed" } });
+      if (opts.agent && req.method === "POST" && (path === "/v1/messages" || path === "/v1/messages/count_tokens")) {
+        const parsed = await readJson(req, opts.agent.maxBody);
+        // A rough count (about 4 characters a token, a picture about 1,500): enough for a client that wants one before it sends.
+        if (path === "/v1/messages/count_tokens") return json(200, { input_tokens: Math.ceil(JSON.stringify(parsed).replace(/"data":"[^"]{200,}"/g, '"data":"x"').length / 4) + 1500 * (JSON.stringify(parsed).match(/"type":"image"/g)?.length ?? 0) });
+        const day = new Date().toISOString().slice(0, 10);
+        const nowMs = Date.now();
+        const recentMs = (rate.get(key.id) ?? []).filter((t) => nowMs - t < 60_000);
+        if (recentMs.length >= ratePerMinute * 4) return anthropicError(429, `rate limit: ${ratePerMinute * 4} requests per minute`, "rate_limit_error");
+        rate.set(key.id, [...recentMs, nowMs]);
+        // Counted per key (own: true keeps these calls out of the shared totals chat and the free API run on).
+        if ((key.daily?.[day]?.requests ?? 0) >= opts.agent.dailyLimit) return anthropicError(429, `this key's daily limit of ${opts.agent.dailyLimit} agent requests is used up; it resets at 00:00 UTC`, "rate_limit_error");
+        const r = await opts.agent.run(parsed, AbortSignal.timeout(120_000));
+        if (!r.ok) return anthropicError(r.status, r.message, "api_error");
+        await opts.store.recordUse(key.id, day, { input: r.usage.prompt_tokens, output: r.usage.completion_tokens, neurons: 0, own: true });
+        return parsed.stream === true ? messageAsEvents(r.message) : json(200, r.message);
+      }
       if (req.method === "GET" && path === "/v1/models" && opts.allowedModels?.length)
         return json(200, { object: "list", data: opts.allowedModels.map((id) => ({ id, object: "model", owned_by: opts.name ?? "portal" })) });
       const now = Date.now();

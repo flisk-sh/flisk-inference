@@ -20,6 +20,12 @@ CHAT_BASE_MODEL = "@cf/qwen/qwen3.8-27b"
 # Flisk Wolf Large: Inkling 2 Small (Thinking Machines, 594B MoE) on Workers AI. Needs the Workers Paid plan; remove LARGE_BASE_MODEL to turn it off.
 LARGE_MODEL = "flisk-wolf-large"
 LARGE_BASE_MODEL = "@cf/thinkingmachines/inkling-2-small"
+# Anthropic Messages API (POST /v1/messages, ANTHROPIC_BASE_URL=https://inference.flisk.si for Claude Code): a Workers AI model that reads
+# images and calls tools, whatever model name the caller sends. Its own limit per key a day; not part of the shared totals below.
+# Remove AGENT_BASE_MODEL to turn it off.
+AGENT_MODEL = "flisk-wolf-agent"
+AGENT_BASE_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct"
+AGENT_DAILY_LIMIT = "500"
 # Shared by every key: keeps the beta inside the Workers AI free daily allowance.
 DAILY_LIMIT = "60"
 # Shown when the daily limit is used up and under the limits meter in the console.
