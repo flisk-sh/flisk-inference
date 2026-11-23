@@ -25,7 +25,7 @@ LARGE_BASE_MODEL = "@cf/thinkingmachines/inkling-2-small"
 # Remove AGENT_BASE_MODEL to turn it off.
 AGENT_MODEL = "flisk-wolf-agent"
 AGENT_BASE_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct"
-AGENT_DAILY_LIMIT = "500"
+AGENT_DAILY_LIMIT = "2000"
 # When Workers AI is out of its free allowance the same call runs on OpenRouter (free model with images + tools). Secret OPENROUTER_API_KEY
 # (bunx wrangler@4 secret put OPENROUTER_API_KEY); without it nothing changes. Free keys get a small daily request count from OpenRouter.
 AGENT_FALLBACK_MODEL = "google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-3.5-super-vl:free,inclusionai/ling-3.2-flash:free,particle-ai/particle-1:free"
