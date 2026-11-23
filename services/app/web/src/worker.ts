@@ -88,7 +88,7 @@ function handle(req: Request, env: Env): Promise<Response> {
         upstream: openaiUpstream({ key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || "gpt-4o-mini", publicModel: env.PUBLIC_MODEL,
           preludes: { [env.PUBLIC_MODEL]: parseModelfile(modelfile), ...(env.CHAT_MODEL ? { [env.CHAT_MODEL]: [] } : {}), ...(largeBase ? { [env.LARGE_MODEL as string]: [] } : {}) } }) } : undefined,
       ownProviders: { publicModel: env.PUBLIC_MODEL, preludes: { [env.PUBLIC_MODEL]: parseModelfile(modelfile), ...(env.CHAT_MODEL ? { [env.CHAT_MODEL]: [] } : {}), ...(largeBase ? { [env.LARGE_MODEL as string]: [] } : {}) } },
-      agent: env.AGENT_MODEL && env.AGENT_BASE_MODEL ? { run: agentUpstream({ ai: env.AI, model: env.AGENT_BASE_MODEL, publicModel: env.AGENT_MODEL, fallback: env.OPENROUTER_API_KEY ? { key: env.OPENROUTER_API_KEY, model: env.AGENT_FALLBACK_MODEL || "google/gemma-4-31b-it:free" } : undefined }), dailyLimit: Number(env.AGENT_DAILY_LIMIT) || 500, maxBody: 8 * 1024 * 1024 } : undefined,
+      agent: env.AGENT_MODEL && env.AGENT_BASE_MODEL ? { run: agentUpstream({ ai: env.AI, model: env.AGENT_BASE_MODEL, publicModel: env.AGENT_MODEL, fallback: env.OPENROUTER_API_KEY ? { key: env.OPENROUTER_API_KEY, model: (env.AGENT_FALLBACK_MODEL || "google/gemma-4-31b-it:free").split(",").map((m) => m.trim()).filter(Boolean) } : undefined }), dailyLimit: Number(env.AGENT_DAILY_LIMIT) || 500, maxBody: 8 * 1024 * 1024 } : undefined,
       beta: true,
       asset: (path) => env.ASSETS.fetch(new Request(new URL(path, env.PUBLIC_URL))),
       indexHtml: async () => (await env.ASSETS.fetch(new Request(new URL("/index.html", env.PUBLIC_URL)))).text(),

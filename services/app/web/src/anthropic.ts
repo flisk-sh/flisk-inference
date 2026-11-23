@@ -109,7 +109,7 @@ export const anthropicError = (status: number, message: string, type = "invalid_
 
 /** The model behind /v1/messages: one model that reads images and calls tools, whatever name the caller sends. Workers AI first; when it
  *  fails (its free daily allowance is used up, error 4006) the same request goes to OpenRouter, which takes the OpenAI body as it is. */
-export function agentUpstream(opts: { ai: AiBinding; model: string; publicModel: string; maxTokens?: number; fallback?: { key: string; model: string; url?: string; fetchImpl?: typeof fetch } }) {
+export function agentUpstream(opts: { ai: AiBinding; model: string; publicModel: string; maxTokens?: number; fallback?: { key: string; model: string | string[]; url?: string; fetchImpl?: typeof fetch } }) {
   const cap = opts.maxTokens ?? 4096;
   return async (anthropicBody: Json, signal?: AbortSignal): Promise<{ ok: true; message: Json; usage: { prompt_tokens: number; completion_tokens: number } } | { ok: false; status: number; message: string }> => {
     const input = anthropicToOpenAI(anthropicBody, cap);
@@ -119,15 +119,18 @@ export function agentUpstream(opts: { ai: AiBinding; model: string; publicModel:
     try { res = (await opts.ai.run(opts.model, input)) as OaiResult; }
     catch (e) { failure = (e as Error).message; }
     if (!res && opts.fallback) {
-      try {
-        const r = await (opts.fallback.fetchImpl ?? fetch)(opts.fallback.url ?? "https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST", signal,
-          headers: { "content-type": "application/json", authorization: `Bearer ${opts.fallback.key}`, "x-title": "Flisk Inference" },
-          body: JSON.stringify({ ...input, model: opts.fallback.model }),
-        });
-        if (r.ok) res = (await r.json()) as OaiResult;
-        else failure = `${failure}; fallback answered ${r.status}`; // never pass the provider's error body on: it can name the key
-      } catch (e) { failure = `${failure}; fallback failed: ${(e as Error).message}`; }
+      // Free models are often rate-limited upstream (429): try the next one. A provider's error body is never passed on: it can name the key.
+      for (const model of ([] as string[]).concat(opts.fallback.model)) {
+        try {
+          const r = await (opts.fallback.fetchImpl ?? fetch)(opts.fallback.url ?? "https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST", signal,
+            headers: { "content-type": "application/json", authorization: `Bearer ${opts.fallback.key}`, "x-title": "Flisk Inference" },
+            body: JSON.stringify({ ...input, model }),
+          });
+          if (r.ok) { res = (await r.json()) as OaiResult; break; }
+          failure += `; ${model} answered ${r.status}`;
+        } catch (e) { failure += `; ${model} failed: ${(e as Error).message}`; }
+      }
     }
     if (!res) return { ok: false, status: 502, message: `model call failed: ${failure}` };
     const message = openAIToAnthropic(res, opts.publicModel);

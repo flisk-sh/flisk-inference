@@ -127,4 +127,14 @@ describe("agentUpstream fallback", () => {
     const r = await agentUpstream({ ai: down, model: "m", publicModel: "pub" })(body);
     expect(r.ok).toBe(false);
   });
+  it("tries the next free model when one is rate-limited", async () => {
+    const tried: string[] = [];
+    const up = agentUpstream({ ai: down, model: "m", publicModel: "pub", fallback: { key: "k", model: ["a:free", "b:free"], fetchImpl: (async (_u: string, init: RequestInit) => {
+      const m = JSON.parse(String(init.body)).model as string; tried.push(m);
+      return m === "a:free" ? new Response("slow down", { status: 429 }) : Response.json({ choices: [{ message: { content: "ok" } }] });
+    }) as unknown as typeof fetch } });
+    const r = await up(body);
+    expect(r.ok).toBe(true);
+    expect(tried).toEqual(["a:free", "b:free"]);
+  });
 });
