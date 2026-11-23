@@ -105,3 +105,26 @@ describe("POST /v1/messages", () => {
     expect(((await r.json()) as { type: string }).type).toBe("error");
   });
 });
+
+describe("agentUpstream fallback", () => {
+  const body = { messages: [{ role: "user", content: "hi" }] };
+  const down = { run: async () => { throw new Error("4006: you have used up your daily free allocation"); } };
+  it("runs the same call on OpenRouter when Workers AI fails, and never leaks the provider's error", async () => {
+    const seen: Array<{ url: string; model: string; auth: string }> = [];
+    const up = agentUpstream({ ai: down, model: "m", publicModel: "pub", fallback: { key: "k1", model: "free/model:free", fetchImpl: (async (url: string, init: RequestInit) => {
+      seen.push({ url, model: JSON.parse(String(init.body)).model, auth: String((init.headers as Record<string, string>).authorization) });
+      return Response.json({ choices: [{ message: { content: "from openrouter" } }], usage: { prompt_tokens: 4, completion_tokens: 2 } });
+    }) as unknown as typeof fetch } });
+    const r = await up(body);
+    expect(r.ok && (r.message.content as Array<{ text: string }>)[0].text).toBe("from openrouter");
+    expect(seen[0]).toEqual({ url: "https://openrouter.ai/api/v1/chat/completions", model: "free/model:free", auth: "Bearer k1" });
+    const bad = agentUpstream({ ai: down, model: "m", publicModel: "pub", fallback: { key: "SECRET", model: "x", fetchImpl: (async () => new Response("key SECRET rejected", { status: 401 })) as unknown as typeof fetch } });
+    const e = await bad(body);
+    expect(e.ok).toBe(false);
+    expect(JSON.stringify(e)).not.toContain("SECRET");
+  });
+  it("fails as before without a fallback", async () => {
+    const r = await agentUpstream({ ai: down, model: "m", publicModel: "pub" })(body);
+    expect(r.ok).toBe(false);
+  });
+});

@@ -107,15 +107,29 @@ export function messageAsEvents(msg: Json): Response {
 
 export const anthropicError = (status: number, message: string, type = "invalid_request_error") => Response.json({ type: "error", error: { type, message } }, { status });
 
-/** The model behind /v1/messages: one Workers AI model that reads images and calls tools, whatever name the caller sends. */
-export function agentUpstream(opts: { ai: AiBinding; model: string; publicModel: string; maxTokens?: number }) {
+/** The model behind /v1/messages: one model that reads images and calls tools, whatever name the caller sends. Workers AI first; when it
+ *  fails (its free daily allowance is used up, error 4006) the same request goes to OpenRouter, which takes the OpenAI body as it is. */
+export function agentUpstream(opts: { ai: AiBinding; model: string; publicModel: string; maxTokens?: number; fallback?: { key: string; model: string; url?: string; fetchImpl?: typeof fetch } }) {
   const cap = opts.maxTokens ?? 4096;
   return async (anthropicBody: Json, signal?: AbortSignal): Promise<{ ok: true; message: Json; usage: { prompt_tokens: number; completion_tokens: number } } | { ok: false; status: number; message: string }> => {
     const input = anthropicToOpenAI(anthropicBody, cap);
     if (!(input.messages as unknown[]).length) return { ok: false, status: 400, message: "messages must not be empty" };
-    let res: OaiResult;
+    let res: OaiResult | undefined;
+    let failure = "";
     try { res = (await opts.ai.run(opts.model, input)) as OaiResult; }
-    catch (e) { void signal; return { ok: false, status: 502, message: `model call failed: ${(e as Error).message}` }; }
+    catch (e) { failure = (e as Error).message; }
+    if (!res && opts.fallback) {
+      try {
+        const r = await (opts.fallback.fetchImpl ?? fetch)(opts.fallback.url ?? "https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST", signal,
+          headers: { "content-type": "application/json", authorization: `Bearer ${opts.fallback.key}`, "x-title": "Flisk Inference" },
+          body: JSON.stringify({ ...input, model: opts.fallback.model }),
+        });
+        if (r.ok) res = (await r.json()) as OaiResult;
+        else failure = `${failure}; fallback answered ${r.status}`; // never pass the provider's error body on: it can name the key
+      } catch (e) { failure = `${failure}; fallback failed: ${(e as Error).message}`; }
+    }
+    if (!res) return { ok: false, status: 502, message: `model call failed: ${failure}` };
     const message = openAIToAnthropic(res, opts.publicModel);
     const u = message.usage as { input_tokens: number; output_tokens: number };
     return { ok: true, message, usage: { prompt_tokens: u.input_tokens, completion_tokens: u.output_tokens } };

@@ -26,6 +26,9 @@ LARGE_BASE_MODEL = "@cf/thinkingmachines/inkling-2-small"
 AGENT_MODEL = "flisk-wolf-agent"
 AGENT_BASE_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct"
 AGENT_DAILY_LIMIT = "500"
+# When Workers AI is out of its free allowance the same call runs on OpenRouter (free model with images + tools). Secret OPENROUTER_API_KEY
+# (bunx wrangler@4 secret put OPENROUTER_API_KEY); without it nothing changes. Free keys get a small daily request count from OpenRouter.
+AGENT_FALLBACK_MODEL = "google/gemma-4-31b-it:free"
 # Shared by every key: keeps the beta inside the Workers AI free daily allowance.
 DAILY_LIMIT = "100"
 # Shown when the daily limit is used up and under the limits meter in the console.
