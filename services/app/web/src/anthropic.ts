@@ -5,6 +5,7 @@ import { SSE_HEADERS } from "./sse";
 import type { AiBinding } from "./workers-ai";
 
 type Json = Record<string, unknown>;
+export const MAX_IMAGES = 4;
 interface OaiMessage { role: string; content?: unknown; tool_calls?: unknown; tool_call_id?: string }
 
 const text = (v: unknown): string => {
@@ -46,6 +47,17 @@ export function anthropicToOpenAI(body: Json, cap: number): Json {
       else if (b.type === "image") { const url = dataUrl(b.source as Json); if (url) parts.push({ type: "image_url", image_url: { url } }); }
     }
     flush();
+  }
+  // An agent resends every screenshot it ever took with each turn: only the newest few go on, so the body stays small
+  // (a Worker has little CPU and memory per call) and the model is not asked to read 40 old screens.
+  let kept = 0;
+  for (let i = out.length - 1; i >= 0; i--) {
+    const c = out[i].content;
+    if (!Array.isArray(c)) continue;
+    out[i].content = c.map((p) => {
+      if ((p as Json).type !== "image_url") return p;
+      return ++kept <= MAX_IMAGES ? p : { type: "text", text: "[earlier screenshot left out]" };
+    });
   }
   const tools = (Array.isArray(body.tools) ? body.tools : []) as Json[];
   const choice = body.tool_choice as Json | undefined;

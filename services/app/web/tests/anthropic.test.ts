@@ -34,6 +34,17 @@ describe("anthropicToOpenAI", () => {
   });
 });
 
+describe("old screenshots", () => {
+  it("keeps only the newest images and says where the older ones were", () => {
+    const messages = Array.from({ length: 7 }, (_, i) => ({ role: "user", content: [{ type: "text", text: `t${i}` }, shot] }));
+    const out = (anthropicToOpenAI({ messages }, 100) as { messages: Array<{ content: Array<{ type: string; text?: string }> }> }).messages;
+    const imgs = out.flatMap((m) => m.content).filter((p) => p.type === "image_url").length;
+    expect(imgs).toBe(4);
+    expect(out[0].content[1]).toEqual({ type: "text", text: "[earlier screenshot left out]" });
+    expect(out[6].content[1].type).toBe("image_url");
+  });
+});
+
 describe("openAIToAnthropic", () => {
   it("turns OpenAI tool calls into tool_use blocks with stop_reason tool_use", () => {
     const m = openAIToAnthropic({ choices: [{ message: { content: "ok", tool_calls: [{ id: "c1", function: { name: "Bash", arguments: '{"cmd":"ls"}' } }] } }], usage: { prompt_tokens: 5, completion_tokens: 2 } }, "flisk-wolf-agent") as { content: unknown[]; stop_reason: string; usage: unknown };
