@@ -501,6 +501,28 @@ describe("pages", () => {
 });
 
 describe("site icons", () => {
+  it("caches successful icon GET and HEAD responses without changing their content", async () => {
+    const headers = { "content-type": "image/vnd.microsoft.icon", "cache-control": "public, max-age=0, must-revalidate", etag: '"mark-v1"' };
+    const portal = make({ asset: () => new Response("icon bytes", { headers }) });
+    for (const path of ["/favicon.ico", "/icon.svg", "/apple-touch-icon.png", "/og.png"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const res = await portal.fetch(req(path, { method }));
+        expect(res.status).toBe(200);
+        expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
+        expect(res.headers.get("content-type")).toBe(headers["content-type"]);
+        expect(res.headers.get("etag")).toBe(headers.etag);
+        expect(await res.text()).toBe(method === "GET" ? "icon bytes" : "");
+      }
+    }
+  });
+
+  it("does not add a cache lifetime to missing icon responses", async () => {
+    const portal = make({ asset: () => new Response("not found", { status: 404 }) });
+    const res = await portal.fetch(req("/favicon.ico"));
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBeNull();
+  });
+
   it("serves the icons from public/ and links them in <head>", async () => {
     const pub = join(import.meta.dir, "..", "public");
     const portal = make({ asset: (path) => new Response(Bun.file(join(pub, path))) });

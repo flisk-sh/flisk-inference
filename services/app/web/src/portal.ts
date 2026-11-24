@@ -81,6 +81,7 @@ Preferred-Languages: en
 Canonical: ${publicUrl}/.well-known/security.txt
 `;
 const ICON_LINKS = `<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
+const ICON_CACHE = "public, max-age=86400";
 // robots.txt and sitemap.xml change only when the site is redeployed; crawlers should not re-run the Worker for them.
 const CRAWL_CACHE = { "cache-control": "public, max-age=86400" };
 
@@ -187,7 +188,17 @@ export function createPortal(opts: PortalOptions) {
     // HEAD too: link-preview crawlers and `curl -I` check the image and page before fetching them.
     const read = req.method === "GET" || req.method === "HEAD";
     const bodyFor = (res: Response) => (req.method === "HEAD" ? new Response(null, { status: res.status, headers: res.headers }) : res);
-    if (read && opts.asset && ICONS.includes(path)) return bodyFor(await opts.asset(path));
+    if (read && opts.asset && ICONS.includes(path)) {
+      const asset = await opts.asset(path);
+      if (asset.status !== 200) return bodyFor(asset);
+      const response = new Response(req.method === "HEAD" ? null : asset.body, {
+        status: asset.status,
+        statusText: asset.statusText,
+        headers: asset.headers,
+      });
+      response.headers.set("cache-control", ICON_CACHE);
+      return response;
+    }
     // Search engines: crawl the page, keep off the API and sign-in routes, and find the sitemap.
     if (read && path === "/robots.txt")
       return bodyFor(new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /auth/\nDisallow: /v1/\n\nSitemap: ${opts.publicUrl}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8", ...CRAWL_CACHE } }));
